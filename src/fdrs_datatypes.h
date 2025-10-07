@@ -163,4 +163,9 @@ typedef int esp_err_t;
 #define NOISE_T         36 // Noise level #1
 #define NOISE2_T        37 // Noise level #2
 
+// KaiABC Biological Oscillator Phase Synchronization Types
+#define KAIABC_PHASE_T  40 // KaiABC Phase Data (Part 1 of 3)
+#define KAIABC_STATE_T  41 // KaiABC State Data (Part 2 of 3)
+#define KAIABC_META_T   42 // KaiABC Metadata (Part 3 of 3)
+
 #endif //FDRS_DATA_TYPES

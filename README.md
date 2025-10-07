@@ -1,10 +1,25 @@
 <p align="center"><img src="extras/fdrs_logo.svg" width="325">
 
-# <p align="center">Farm Data Relay System
+# <p align="center">Farm Data Relay System + KaiABC
 
 ##### <p align="center">[***In loving memory of Gay Holman, an extraordinary woman.***](https://www.facebook.com/CFECI/posts/2967989419953119) #####
 
-Farm Data Relay System is an easy way to communicate with remote IoT devices without relying on WiFi or LoRaWAN infrastructure. It establishes a series of inexpensive, low-power access points and repeaters to provide ESP-NOW and LoRa coverage for remote devices. FDRS can be used to transport sensor readings and control messages in situations where it would be too cumbersome to provide full WiFi/LoRaWAN coverage. While the system was designed with farming in mind, FDRS could also be beneficial in a classroom, home, or research setting. 
+Farm Data Relay System is an easy way to communicate with remote IoT devices without relying on WiFi or LoRaWAN infrastructure. It establishes a series of inexpensive, low-power access points and repeaters to provide ESP-NOW and LoRa coverage for remote devices. FDRS can be used to transport sensor readings and control messages in situations where it would be too cumbersome to provide full WiFi/LoRaWAN coverage. While the system was designed with farming in mind, FDRS could also be beneficial in a classroom, home, or research setting.
+
+## 🔬 NEW: KaiABC Biological Oscillator Synchronization
+
+This repository now includes a **working implementation** of distributed time synchronization using biological oscillators! Instead of traditional NTP/GPS, KaiABC nodes achieve time coherence through **Kuramoto phase coupling** - inspired by the cyanobacterial circadian clock.
+
+**Key Features:**
+- 🔋 **Ultra-low power:** 246-year theoretical battery life
+- 📡 **Ultra-low bandwidth:** ~1.5 kbps per device (vs 100+ kbps for NTP)
+- 🌍 **No infrastructure:** No GPS, NTP servers, or internet required
+- 🌡️ **Temperature compensated:** Works across ±5°C variance (Q10=1.1)
+- 📊 **Based on research:** Connects Kakeya Conjecture to distributed networks
+
+**Getting Started:** See [KaiABC Examples](examples/KaiABC_Sensor/) and [Research Documentation](research/KaiABC/)
+
+---
 
 Devices are classified into two types: **Gateways** and **Nodes**. Gateways comprise the infrastructure of the network, moving data along pre-directed routes and providing coverage to all devices. Nodes allow the user to exchange data with a gateway. Each gateway is identified with an 8-bit physical hex address (MAC), while nodes use 16-bit integers to identify datapoints as they move through the system.
 
