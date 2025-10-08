@@ -19,6 +19,11 @@ This repository now includes a **prototype theoretical (not currently tested) im
 
 **Getting Started:** See [KaiABC Examples](examples/KaiABC_Sensor/) and [Research Documentation](research/KaiABC/)
 
+**🔬 Learn More About the Mathematics:**
+For a comprehensive explanation of the Kuramoto model, phase coupling, Q10 temperature compensation, and the biological principles behind KaiABC synchronization, visit:
+
+**[https://kaiabc.pages.dev/](https://kaiabc.pages.dev/)**
+
 ---
 
 Devices are classified into two types: **Gateways** and **Nodes**. Gateways comprise the infrastructure of the network, moving data along pre-directed routes and providing coverage to all devices. Nodes allow the user to exchange data with a gateway. Each gateway is identified with an 8-bit physical hex address (MAC), while nodes use 16-bit integers to identify datapoints as they move through the system.
