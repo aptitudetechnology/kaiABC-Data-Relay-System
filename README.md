@@ -30,24 +30,54 @@ Devices are classified into two types: **Gateways** and **Nodes**. Gateways comp
 
 
 ## Getting Started
+
+### Core FDRS Installation
+
 **Libraries Required:**
-- [ArduinoJson](https://arduinojson.org/)
-- [RadioLib](https://github.com/jgromes/RadioLib) for LoRa
-- [PubSubClient](https://github.com/knolleary/pubsubclient/) for MQTT
+- [ArduinoJson](https://arduinojson.org/) - Required for all FDRS functionality
+- [RadioLib](https://github.com/jgromes/RadioLib) - Required for LoRa communication
+- [PubSubClient](https://github.com/knolleary/pubsubclient/) - Required for MQTT gateways
 
 **Included:**
 - [ThingPulse OLED Library for ESP](https://github.com/ThingPulse/esp8266-oled-ssd1306)
-#
+
 **To install FDRS:**
-1. Download or clone this repository and copy it into your Arduino **'libraries'** folder.
 
-2.  After installing, edit the **'src/fdrs_globals.h'** file with your WiFi credentials and other global parameters.
+1. **Install the library:**
+   - Download or clone this repository and copy it into your Arduino **'libraries'** folder, OR
+   - Use Arduino Library Manager: Search for "Farm Data Relay System" (when available)
 
-3.  The first sketch you'll want to try is the **1_UART_Gateway.ino** example. This device will listen for incoming ESP-NOW packets, then route them to the serial port (and vice versa). Next, flash the **ESPNOW_Sensor.ino** example to see how to send data to the gateway.
+2. **Configure global settings:**
+   - Edit the **'src/fdrs_globals.h'** file with your WiFi credentials and other global parameters
+   - Set your MQTT broker address if using MQTT
 
-4.  To use MQTT: Connect the second gateway to the first via the Rx and Tx pins (crossed), and flash it with the **0_MQTT_Gateway.ino** example. If your WiFi and MQTT configurations are correct, data will be published to the topic 'fdrs/data'.
+3. **Try basic FDRS examples:**
+   - **Gateway:** Start with **1_UART_Gateway.ino** - listens for ESP-NOW packets and routes to serial
+   - **Sensor:** Flash **ESPNOW_Sensor.ino** to send data to the gateway
+   - **MQTT:** Try **0_MQTT_Gateway.ino** for WiFi/MQTT connectivity (connect via UART to gateway #1)
+   - **Repeater:** Extend range with **2_ESPNOW_Repeater.ino** or **3_LoRa_Repeater.ino**
 
-5. To extend your range, try the **2_ESPNOW_Repeater.ino** or **3_LoRa_Repeater.ino**. Just change the *GTWY_MAC* of your sensor to the address of your new repeater.
+### KaiABC Installation 
+
+To use the biological oscillator synchronization features:
+
+**Additional Libraries for KaiABC:**
+- [DHT sensor library](https://github.com/adafruit/DHT-sensor-library) - For DHT22 temperature sensors (optional)
+- [Adafruit BME280 Library](https://github.com/adafruit/Adafruit_BME280_Library) - For BME280 sensors (optional)
+
+**KaiABC Examples:**
+- **ESP32/ESP8266:** See `examples/KaiABC_Sensor/` for FDRS-integrated oscillator nodes
+- **ELM11 + ESP32:** See `examples/KaiABC_ELM11/` for hybrid Lua/C++ implementation
+- **Documentation:** Full research and implementation details in `research/KaiABC/`
+
+**Quick Start with KaiABC:**
+1. Flash a gateway using standard FDRS examples above
+2. Navigate to `examples/KaiABC_Sensor/`
+3. Copy `fdrs_node_config.h` template and configure for your gateway
+4. Flash `KaiABC_Sensor.ino` to your ESP32/ESP8266 node
+5. Monitor synchronization via MQTT or UART output
+
+**Note:** KaiABC is a prototype theoretical implementation. See individual example READMEs for detailed setup and testing procedures.
 
 
 ## Nodes
