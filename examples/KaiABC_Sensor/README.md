@@ -1,8 +1,10 @@
-# KaiABC Biological Oscillator Synchronization for FDRS
+# KaiABC Sensor Example
+
+> ⚠️ **PROTOTYPE STATUS:** This is a theoretical implementation based on comprehensive research. The code compiles successfully and the mathematical model has been validated through simulation, but **has not yet been tested on real hardware**. All performance predictions (synchronization time, power consumption, basin volume) are theoretical and await empirical validation.
 
 ## Overview
 
-This is a working implementation of **biological oscillator synchronization** using the KaiABC circadian clock model integrated into the Farm Data Relay System (FDRS). Instead of traditional NTP/GPS time synchronization, this system uses **distributed phase coupling** based on the Kuramoto model to achieve network-wide time coherence.
+This is a **prototype theoretical (not currently tested) implementation** of **biological oscillator synchronization** using the KaiABC circadian clock model integrated into the Farm Data Relay System (FDRS). Instead of traditional NTP/GPS time synchronization, this system uses **distributed phase coupling** based on the Kuramoto model to achieve network-wide time coherence.
 
 ## 🔬 Research Foundation
 
