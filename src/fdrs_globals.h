@@ -65,4 +65,37 @@
   #undef USE_OLED
 #endif
 
+// ============================================================================
+// KAIABC BIOLOGICAL OSCILLATOR DEFAULT CONFIGURATION
+// ============================================================================
+// These can be overridden in node/gateway config files
+
+#ifndef KAIABC_PERIOD
+#define KAIABC_PERIOD 24.0  // Base oscillator period in hours (circadian rhythm)
+#endif
+
+#ifndef KAIABC_Q10
+#define KAIABC_Q10 1.1  // Temperature compensation coefficient
+                         // Q10 = 1.0: Perfect compensation (ideal)
+                         // Q10 = 1.1: Realistic KaiABC (RECOMMENDED)
+                         // Q10 = 2.2: Uncompensated oscillator
+#endif
+
+#ifndef KAIABC_TREF
+#define KAIABC_TREF 30.0  // Reference temperature in °C
+#endif
+
+#ifndef KAIABC_COUPLING
+#define KAIABC_COUPLING 0.1  // Kuramoto coupling strength K
+                              // Must be > K_c (critical coupling ≈ 2σ_ω)
+                              // Recommended: 0.1 for Q10=1.1
+#endif
+
+#ifndef KAIABC_UPDATE_INTERVAL
+#define KAIABC_UPDATE_INTERVAL 7200000  // Phase broadcast interval in milliseconds
+                                         // 7200000 = 2 hours (RECOMMENDED balance)
+                                         // 3600000 = 1 hour (faster sync)
+                                         // 14400000 = 4 hours (ultra-low power)
+#endif
+
 #endif // __FDRS_GLOBALS_h__

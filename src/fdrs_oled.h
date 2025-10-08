@@ -91,6 +91,47 @@ void drawPage3() {
     // display.display();
 }
 
+#ifdef USE_KAIABC
+// KaiABC Biological Oscillator Status Display
+void drawKaiABCPage() {
+    draw_OLED_header();
+    display.setFont(ArialMT_Plain_10);
+    
+    // Get current oscillator state
+    float phase = getKaiABCPhase();
+    float period = getKaiABCPeriod();
+    float R = getKaiABCOrderParameter();
+    uint16_t cycles = getKaiABCCycleCount();
+    
+    // Line 1: Phase in radians
+    display.drawString(0, 17, "Phase: " + String(phase, 2) + " rad");
+    
+    // Line 2: Phase in degrees
+    float degrees = phase * 360.0 / (2.0 * PI);
+    display.drawString(0, 26, "      (" + String(degrees, 1) + " deg)");
+    
+    // Line 3: Period
+    display.drawString(0, 35, "Period: " + String(period, 2) + " hr");
+    
+    // Line 4: Order parameter with status
+    String status;
+    if (R > 0.95) {
+        status = "SYNC";
+    } else if (R > 0.5) {
+        status = "PART";
+    } else {
+        status = "DESYNC";
+    }
+    display.drawString(0, 44, "R: " + String(R, 3) + " " + status);
+    
+    // Line 5: Neighbors and cycles
+    display.drawString(0, 53, "N:" + String(kaiABC_neighbor_count) + 
+                              " Cyc:" + String(cycles));
+    
+    display.display();
+}
+#endif // USE_KAIABC
+
 // write display content to display buffer
 // nextpage = true -> flip 1 page
 // When debug info comes in then switch to debug page
@@ -117,8 +158,13 @@ void drawPageOLED(bool nextpage) {
             // drawStatusPage();
             // break;
         case 2: // to be defined later
+#ifdef USE_KAIABC
+            drawKaiABCPage();
+            break;
+#else
             // drawPage2();
             // break;
+#endif
         case 3: // to be defined later
             // drawPage3();
             // break;

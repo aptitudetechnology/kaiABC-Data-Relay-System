@@ -394,10 +394,118 @@ void checkConfig() {
 
 	printLoggingInformation();
 	
+#ifdef USE_KAIABC
+	printKaiABCConfiguration();
+#endif
+	
 	printConfigHeader("NODE CONFIGURATION OVERVIEW END");
 	//DBG(separatorLine);
 	DBG("");
 }
+
+// ============================================================================
+// KAIABC BIOLOGICAL OSCILLATOR CONFIGURATION CHECK
+// ============================================================================
+
+#ifdef USE_KAIABC
+
+void printKaiABCConfiguration() {
+	printSmallSectionHeader("KAIABC BIOLOGICAL OSCILLATOR");
+	
+	DBG("KaiABC Status     : ENABLED");
+	
+	// Q10 Temperature Coefficient
+	DBG("Q10 Coefficient   : " + String(KAIABC_Q10, 3));
+	#if KAIABC_Q10 < 0.5 || KAIABC_Q10 > 3.0
+		DBG("  WARNING: Q10 outside typical range (0.5-3.0)");
+	#endif
+	#if KAIABC_Q10 < 0.95 || KAIABC_Q10 > 1.15
+		DBG("  Note: Q10 far from 1.0 indicates poor temperature compensation");
+	#endif
+	
+	// Oscillator Period
+	DBG("Base Period       : " + String(KAIABC_PERIOD, 1) + " hours");
+	#if KAIABC_PERIOD <= 0
+		DBG("  ERROR: Period must be positive!");
+	#elif KAIABC_PERIOD < 1.0
+		DBG("  Note: Very short period - for testing only");
+	#elif KAIABC_PERIOD > 48.0
+		DBG("  WARNING: Very long period - sync will take longer");
+	#endif
+	
+	// Coupling Strength
+	DBG("Coupling K        : " + String(KAIABC_COUPLING, 4));
+	#if KAIABC_COUPLING <= 0
+		DBG("  ERROR: Coupling must be positive!");
+	#elif KAIABC_COUPLING < 0.01
+		DBG("  WARNING: Very weak coupling - may not synchronize");
+	#elif KAIABC_COUPLING > 1.0
+		DBG("  Note: Strong coupling - fast sync but more communication");
+	#endif
+	
+	// Reference Temperature
+	DBG("Reference Temp    : " + String(KAIABC_TREF, 1) + " °C");
+	
+	// Update Interval
+	float interval_hours = KAIABC_UPDATE_INTERVAL / 3600000.0;
+	DBG("Update Interval   : " + String(interval_hours, 2) + " hours");
+	float msgs_per_day = 24.0 / interval_hours;
+	DBG("  (" + String((int)msgs_per_day) + " messages/day)");
+	#if KAIABC_UPDATE_INTERVAL < 60000
+		DBG("  WARNING: Very frequent updates - high power consumption");
+	#elif KAIABC_UPDATE_INTERVAL > 21600000
+		DBG("  Note: Infrequent updates - slow synchronization");
+	#endif
+	
+	// Calculate theoretical predictions
+	float ln_q10 = log(KAIABC_Q10);
+	float omega_avg = 2.0 * PI / KAIABC_PERIOD;
+	float dw_dt = (omega_avg / KAIABC_PERIOD) * (ln_q10 / 10.0);
+	float sigma_omega = fabs(dw_dt) * 5.0; // Assume ±5°C variance
+	float k_c = 2.0 * sigma_omega;
+	
+	DBG("");
+	DBG("Theoretical Predictions (±5°C variance):");
+	DBG("  σ_ω              : " + String(sigma_omega, 6) + " rad/hr");
+	DBG("  K_c (critical)   : " + String(k_c, 4));
+	DBG("  K/K_c ratio      : " + String(KAIABC_COUPLING / k_c, 2));
+	
+	if (KAIABC_COUPLING > k_c) {
+		DBG("  Status           : ✓ ABOVE critical - sync expected");
+	} else if (KAIABC_COUPLING > k_c * 0.9) {
+		DBG("  Status           : ⚠ NEAR critical - marginal sync");
+	} else {
+		DBG("  Status           : ✗ BELOW critical - sync unlikely!");
+	}
+	
+	// Basin volume estimate (for N=10)
+	float heterogeneity = sigma_omega / omega_avg;
+	float basin_fraction = pow(1.0 - 1.5 * heterogeneity, 10);
+	DBG("  Basin volume     : " + String(basin_fraction * 100.0, 2) + "% (N=10)");
+	
+	if (basin_fraction < 0.01) {
+		DBG("    WARNING: Very small basin - random start unlikely to sync");
+	} else if (basin_fraction > 0.5) {
+		DBG("    Good basin coverage - high sync probability");
+	}
+	
+	// Communication protocol check
+	DBG("");
+	#ifndef USE_ESPNOW
+		#ifndef USE_LORA
+			DBG("  ERROR: KaiABC requires USE_ESPNOW or USE_LORA!");
+		#endif
+	#endif
+	
+	// Temperature sensor reminder
+	#ifdef USE_BME280
+		DBG("  Temperature sensor: BME280 (✓)");
+	#else
+		DBG("  Note: No temp sensor - using reference temperature");
+	#endif
+}
+
+#endif // USE_KAIABC
 
 #endif //__FDRS_CHECKCONFIG_h__
 

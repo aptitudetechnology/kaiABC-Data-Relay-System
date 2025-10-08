@@ -137,6 +137,65 @@ void loadFDRS(float d, uint8_t t, uint16_t id)
   data_count++;
 }
 
+#ifdef USE_KAIABC
+// KaiABC Network Statistics Helper Functions
+// These make it easy to load KaiABC metrics for MQTT publishing
+
+// Global variables for KaiABC network statistics (to be set by gateway logic)
+float kaiABC_network_R = 0.0;         // Network order parameter
+uint8_t kaiABC_active_nodes = 0;      // Number of active nodes
+float kaiABC_avg_period = 24.0;       // Average period in hours
+float kaiABC_period_std_dev = 0.0;    // Period standard deviation
+unsigned long kaiABC_sync_time = 0;   // Time to synchronization (seconds)
+
+// Load KaiABC network order parameter
+void loadKaiABCOrderParameter(float R) {
+  kaiABC_network_R = R;
+  loadFDRS(R, STATUS_T, 0xFFFF);  // Use special ID 0xFFFF for network R
+  DBG("Loaded KaiABC Order Parameter: " + String(R, 4));
+}
+
+// Load active node count
+void loadKaiABCNodeCount(uint8_t count) {
+  kaiABC_active_nodes = count;
+  loadFDRS((float)count, IT_T, 0xFFFE);  // Use special ID 0xFFFE for node count
+  DBG("Loaded KaiABC Active Nodes: " + String(count));
+}
+
+// Load average period
+void loadKaiABCAvgPeriod(float period) {
+  kaiABC_avg_period = period;
+  loadFDRS(period, TEMP_T, 0xFFFD);  // Use special ID 0xFFFD for avg period
+  DBG("Loaded KaiABC Avg Period: " + String(period, 2) + " hours");
+}
+
+// Load period standard deviation
+void loadKaiABCStdDev(float std_dev) {
+  kaiABC_period_std_dev = std_dev;
+  loadFDRS(std_dev, TEMP2_T, 0xFFFC);  // Use special ID 0xFFFC for std dev
+  DBG("Loaded KaiABC Period Std Dev: " + String(std_dev, 4) + " hours");
+}
+
+// Load synchronization time (in hours)
+void loadKaiABCSyncTime(unsigned long sync_seconds) {
+  kaiABC_sync_time = sync_seconds;
+  float sync_hours = sync_seconds / 3600.0;
+  loadFDRS(sync_hours, IT_T, 0xFFFB);  // Use special ID 0xFFFB for sync time
+  DBG("Loaded KaiABC Sync Time: " + String(sync_hours, 2) + " hours");
+}
+
+// Convenience function to load all KaiABC stats at once
+void loadAllKaiABCStats(float R, uint8_t nodes, float avg_period, float std_dev, unsigned long sync_time) {
+  loadKaiABCOrderParameter(R);
+  loadKaiABCNodeCount(nodes);
+  loadKaiABCAvgPeriod(avg_period);
+  loadKaiABCStdDev(std_dev);
+  if (sync_time > 0) {
+    loadKaiABCSyncTime(sync_time);
+  }
+}
+#endif // USE_KAIABC
+
 void beginFDRS()
 {
 #if defined(ESP8266)

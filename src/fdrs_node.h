@@ -154,6 +154,20 @@ void handleIncoming()
     newData = event_clear;
     for (int i = 0; i < ln; i++)
     { // Cycle through array of incoming DataReadings for any we are subbed to
+      
+#ifdef USE_KAIABC
+      // Auto-process KaiABC phase synchronization data
+      if (theData[i].t == KAIABC_PHASE_T && i + 2 < ln) {
+        if (theData[i+1].t == KAIABC_PHASE_T + 1 && 
+            theData[i+2].t == KAIABC_PHASE_T + 2) {
+          // Process the 3-part KaiABC message
+          processKaiABCReading(theData[i], theData[i+1], theData[i+2]);
+          i += 2; // Skip the next two entries as we've processed them
+          continue;
+        }
+      }
+#endif
+      
       for (int j = 0; j < 255; j++)
       { // Cycle through subscriptions for active entries
         if (active_subs[j])
