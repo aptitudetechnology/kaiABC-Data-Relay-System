@@ -2,6 +2,21 @@
 
 This directory contains a complete implementation of KaiABC biological oscillator synchronization for the ELM11 Lua microcontroller using a UART-connected ESP32 coprocessor for high-performance mathematical calculations.
 
+## What is KaiABC?
+
+**KaiABC** is a biological oscillator synchronization system inspired by circadian rhythms and the Kuramoto model. It enables distributed networks of microcontrollers to synchronize their phases without a central clock, mimicking natural biological synchronization phenomena.
+
+**🔬 Learn More About the Mathematics:**
+For a comprehensive explanation of the Kuramoto model, phase coupling, Q10 temperature compensation, and the biological principles behind KaiABC synchronization, visit:
+
+**[https://kaiabc.pages.dev/](https://kaiabc.pages.dev/)**
+
+The website includes:
+- Interactive visualizations of oscillator synchronization
+- Mathematical derivations and equations
+- Network topology analysis
+- Real-world applications and examples
+
 ## Architecture Overview
 
 The implementation uses a hybrid approach that leverages the strengths of both platforms:
@@ -601,6 +616,31 @@ To contribute improvements:
 3. Update documentation for any new features
 4. Consider performance impact on resource-constrained devices
 
+## References and Additional Resources
+
+### Mathematical Background
+- **KaiABC Website**: [https://kaiabc.pages.dev/](https://kaiabc.pages.dev/)
+  - Comprehensive explanation of the Kuramoto model
+  - Interactive visualizations of phase synchronization
+  - Q10 temperature compensation theory
+  - Network topology analysis and examples
+
+### Related Documentation
+- **Main Project Repository**: [kaiABC-Data-Relay-System](https://github.com/aptitudetechnology/kaiABC-Data-Relay-System)
+- **FDRS Documentation**: Integration with Farm Data Relay System
+- **ELM11 Datasheet**: Hardware specifications and capabilities
+- **ESP32 Technical Reference**: Arduino core documentation
+
+### Academic Papers
+- Kuramoto, Y. (1975). "Self-entrainment of a population of coupled non-linear oscillators"
+- Strogatz, S. H. (2000). "From Kuramoto to Crawford: exploring the onset of synchronization"
+- Biological oscillator networks and circadian rhythm research
+
+### Community and Support
+- GitHub Issues: Report bugs and request features
+- Discussion Forums: Community support and examples
+- Contributing: See CONTRIBUTING.md for development guidelines
+
 ## License
 
 This implementation is part of the KaiABC Data Relay System project. See main project LICENSE for details.
@@ -611,3 +651,4 @@ This implementation is part of the KaiABC Data Relay System project. See main pr
 **Performance**: Near-C++ speed with Lua flexibility
 **Compatibility**: ELM11 + ESP32 hardware platforms
 **Documentation**: Comprehensive setup and usage guide
+**Mathematical Reference**: [https://kaiabc.pages.dev/](https://kaiabc.pages.dev/)
