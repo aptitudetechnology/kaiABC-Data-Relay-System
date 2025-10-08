@@ -11,7 +11,7 @@ Farm Data Relay System is an easy way to communicate with remote IoT devices wit
 This repository now includes a **prototype theoretical (not currently tested) implementation** of distributed time synchronization using biological oscillators! Instead of traditional NTP/GPS, KaiABC nodes achieve time coherence through **Kuramoto phase coupling** - inspired by the cyanobacterial circadian clock.
 
 **Key Features:**
-- 🔋 **Ultra-low power:** 246-year theoretical battery life
+- 🔋 **Ultra-low power:** long theoretical battery life
 - 📡 **Ultra-low bandwidth:** ~1.5 kbps per device (vs 100+ kbps for NTP)
 - 🌍 **No infrastructure:** No GPS, NTP servers, or internet required
 - 🌡️ **Temperature compensated:** Works across ±5°C variance (Q10=1.1)
