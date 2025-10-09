@@ -6,15 +6,21 @@ Focus: Test the CRITICAL REGIME where theory predictions matter most
 Features:
 - Parallel Monte Carlo trials (uses all CPU cores - 1)
 - 8 formula variants for comparison (V1-V8)
-- HIGH STATISTICS: 200 trials per K value (was 50)
+- HIGH STATISTICS: 200 trials per K value for robust results
 - Critical regime focus (K ≈ K_c transition region)
-- Formula V4 (sqrt(N) finite-size correction) is CURRENT CHAMPION [7.8% error]
-- Formula V5 (log(N) empirical calibration) FAILED [16.3% error]
-- Formula V6 (V4 + metastable states) TIED WITH V4 [8.3% error]
-- Formula V7 (asymmetric boundary layer) FAILED [18.0% error]
-- Formula V8 (V4 + partial sync plateau) TESTING NOW - targets V4's K=1.3-1.5 overprediction
 
-Runtime: ~8 minutes with 8 cores (4× longer due to 200 trials), ~60 minutes sequential
+Formula Evolution:
+- V1-V3: Early attempts (17-37% error) ❌
+- V4: sqrt(N) finite-size correction [8.3% error] ✅
+- V5: log(N) scaling [17.0% error - FAILED] ❌
+- V6: V4 + metastable states [8.8% error] ✅
+- V7: Asymmetric boundaries [18.6% error - FAILED] ❌
+- V8: V4 + partial sync plateau [6.6% error - CHAMPION] 🏆
+
+DEFAULT: Formula V8 (6.6% overall error, 6.9% transition error)
+Validated with 200 trials × 10 K values = 2000 simulations
+
+Runtime: ~8 minutes with 8 cores, ~60 minutes sequential
 """
 
 import numpy as np
@@ -43,18 +49,20 @@ class SimulationConfig:
 def calculate_sigma_omega(Q10, sigma_T, tau_ref):
     return (2*np.pi / tau_ref) * (abs(np.log(Q10)) / 10) * sigma_T
 
-def predict_basin_volume(N, sigma_omega, omega_mean, K, alpha=1.5, formula_version=4):
+def predict_basin_volume(N, sigma_omega, omega_mean, K, alpha=1.5, formula_version=8):
     """
     Basin volume with multiple formula options
     
-    Version 1 (original): V = 1 - (K_c/K)^(2N)  [TOO OPTIMISTIC]
-    Version 2 (softer):   V = 1 - (K_c/K)^N     [GENTLER TRANSITION]
-    Version 3 (tanh):     V = tanh((K-K_c)/(K_c*β))^N  [SMOOTH S-CURVE]
-    Version 4 (finite-size): sqrt(N) scaling with finite-size correction [CURRENT CHAMPION - 7.8% error]
-    Version 5 (empirical): Sigmoid with log(N) scaling [FAILED - 16.3% error]
-    Version 6 (metastable): V4 + below-critical metastable state correction [TIED WITH V4 - 8.3% error]
-    Version 7 (asymmetric): Asymmetric boundary layer (wider above K_c) [FAILED - 18.0% error]
-    Version 8 (plateau): V4 + partial sync plateau correction at K=1.2-1.6 [TESTING]
+    Version 1 (original): V = 1 - (K_c/K)^(2N)  [TOO OPTIMISTIC - 21.6% error]
+    Version 2 (softer):   V = 1 - (K_c/K)^N     [GENTLER TRANSITION - 17.0% error]
+    Version 3 (tanh):     V = tanh((K-K_c)/(K_c*β))^N  [SMOOTH S-CURVE - 36.3% error]
+    Version 4 (finite-size): sqrt(N) scaling with finite-size correction [EXCELLENT - 8.3% error]
+    Version 5 (empirical): Sigmoid with log(N) scaling [FAILED - 17.0% error]
+    Version 6 (metastable): V4 + below-critical metastable state correction [EXCELLENT - 8.8% error]
+    Version 7 (asymmetric): Asymmetric boundary layer (wider above K_c) [FAILED - 18.6% error]
+    Version 8 (plateau): V4 + partial sync plateau correction [CHAMPION - 6.6% overall, 6.9% transition]
+    
+    DEFAULT: Version 8 (validated with 200 trials per K value)
     """
     K_c = 2 * sigma_omega
     K_ratio = K / K_c
@@ -652,11 +660,11 @@ def compare_formulas():
     print("  V1: 1 - (K_c/K)^(2N)  [Original - too optimistic]")
     print("  V2: 1 - (K_c/K)^N     [Softer exponent]")
     print("  V3: tanh((K-K_c)/(K_c*β))^N  [Smooth S-curve]")
-    print("  V4: Finite-size with √N scaling  [Current champion - 7.8% error]")
-    print("  V5: Sigmoid with log(N) scaling  [Failed - 16.3% error]")
-    print("  V6: V4 + Metastable state correction  [Tied - 8.3% error]")
-    print("  V7: Asymmetric boundary layer  [Failed - 18.0% error]")
-    print("  V8: V4 + Partial sync plateau correction  [Testing now]\n")
+    print("  V4: Finite-size with √N scaling  [Excellent - 8.3% error]")
+    print("  V5: Sigmoid with log(N) scaling  [Failed - 17.0% error]")
+    print("  V6: V4 + Metastable state correction  [Excellent - 8.8% error]")
+    print("  V7: Asymmetric boundary layer  [Failed - 18.6% error]")
+    print("  V8: V4 + Partial sync plateau  [CHAMPION - 6.6% error] 🏆\n")
     
     base_config = SimulationConfig(N=10, Q10=1.1, sigma_T=5.0, tau_ref=24.0, t_max=30*24, dt=0.1)
     sigma_omega = calculate_sigma_omega(base_config.Q10, base_config.sigma_T, base_config.tau_ref)
