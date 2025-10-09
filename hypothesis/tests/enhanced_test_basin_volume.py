@@ -1038,7 +1038,7 @@ def compare_formulas():
     print("\n" + "="*70)
     print("FORMULA COMPARISON TEST")
     print("="*70)
-    print("\nTesting 8 different basin volume formulas:")
+    print("\nTesting 9 different basin volume formulas:")
     print("  V1: 1 - (K_c/K)^(2N)  [Original - too optimistic]")
     print("  V2: 1 - (K_c/K)^N     [Softer exponent]")
     print("  V3: tanh((K-K_c)/(K_c*β))^N  [Smooth S-curve]")
@@ -1046,7 +1046,8 @@ def compare_formulas():
     print("  V5: Sigmoid with log(N) scaling  [Failed - 17.0% error]")
     print("  V6: V4 + Metastable state correction  [Excellent - 8.8% error]")
     print("  V7: Asymmetric boundary layer  [Failed - 18.6% error]")
-    print("  V8: V4 + Partial sync plateau  [CHAMPION - 6.6% error] 🏆\n")
+    print("  V8: V4 + Partial sync plateau  [Previous champion - 6.6% error]")
+    print("  V9.1: V8 + Below-critical floor ONLY  [GOLDILOCKS - 5.4% error] 🏆\n")
     
     base_config = SimulationConfig(N=10, Q10=1.1, sigma_T=5.0, tau_ref=24.0, t_max=30*24, dt=0.1)
     sigma_omega = calculate_sigma_omega(base_config.Q10, base_config.sigma_T, base_config.tau_ref)
@@ -1083,10 +1084,10 @@ def compare_formulas():
     print("\n" + "="*70)
     print("FORMULA PREDICTIONS vs EMPIRICAL")
     print("="*70)
-    print(f"{'K/K_c':<8} {'Empirical':<10} {'V1':<8} {'V2':<8} {'V3':<8} {'V4':<8} {'V5':<8} {'V6':<8} {'V7':<8} {'V8':<8}")
-    print("-" * 70)
+    print(f"{'K/K_c':<8} {'Empirical':<10} {'V1':<8} {'V2':<8} {'V3':<8} {'V4':<8} {'V5':<8} {'V6':<8} {'V7':<8} {'V8':<8} {'V9.1':<8}")
+    print("-" * 80)
     
-    errors = {1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: []}
+    errors = {1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9.1: []}
     
     for data in empirical_data:
         K_ratio = data['K_ratio']
@@ -1101,8 +1102,9 @@ def compare_formulas():
         V6 = predict_basin_volume(base_config.N, sigma_omega, omega_mean, K, formula_version=6)
         V7 = predict_basin_volume(base_config.N, sigma_omega, omega_mean, K, formula_version=7)
         V8 = predict_basin_volume(base_config.N, sigma_omega, omega_mean, K, formula_version=8)
+        V9_1 = predict_basin_volume(base_config.N, sigma_omega, omega_mean, K, formula_version=9.1)
         
-        print(f"{K_ratio:<8.1f} {V_emp:<10.1%} {V1:<8.1%} {V2:<8.1%} {V3:<8.1%} {V4:<8.1%} {V5:<8.1%} {V6:<8.1%} {V7:<8.1%} {V8:<8.1%}")
+        print(f"{K_ratio:<8.1f} {V_emp:<10.1%} {V1:<8.1%} {V2:<8.1%} {V3:<8.1%} {V4:<8.1%} {V5:<8.1%} {V6:<8.1%} {V7:<8.1%} {V8:<8.1%} {V9_1:<8.1%}")
         
         # Calculate errors across all K values (including below critical)
         if V_emp > 0.05:  # Only calculate if empirical is meaningful
@@ -1114,16 +1116,18 @@ def compare_formulas():
             errors[6].append(abs(V6 - V_emp))
             errors[7].append(abs(V7 - V_emp))
             errors[8].append(abs(V8 - V_emp))
+            errors[9.1].append(abs(V9_1 - V_emp))
     
     # Summary - Overall performance
     print("\n" + "="*70)
     print("MEAN ABSOLUTE ERROR (all K values):")
     print("-" * 70)
     
-    for version in [1, 2, 3, 4, 5, 6, 7, 8]:
+    for version in [1, 2, 3, 4, 5, 6, 7, 8, 9.1]:
         if errors[version]:
             mean_error = np.mean(errors[version])
-            print(f"Formula V{version}: {mean_error:.1%}", end="")
+            version_str = f"V{version}" if version != 9.1 else "V9.1"
+            print(f"Formula {version_str}: {mean_error:.1%}", end="")
             
             if mean_error < 0.15:
                 print(f"  ✅ Excellent")
@@ -1139,7 +1143,7 @@ def compare_formulas():
     print("TRANSITION REGIME ERROR (K/K_c ∈ [1.0, 1.5]):")
     print("-" * 70)
     
-    transition_errors = {1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: []}
+    transition_errors = {1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9.1: []}
     for data in empirical_data:
         if 1.0 <= data['K_ratio'] <= 1.5:
             K = data['K']
@@ -1153,6 +1157,7 @@ def compare_formulas():
             V6 = predict_basin_volume(base_config.N, sigma_omega, omega_mean, K, formula_version=6)
             V7 = predict_basin_volume(base_config.N, sigma_omega, omega_mean, K, formula_version=7)
             V8 = predict_basin_volume(base_config.N, sigma_omega, omega_mean, K, formula_version=8)
+            V9_1 = predict_basin_volume(base_config.N, sigma_omega, omega_mean, K, formula_version=9.1)
             
             transition_errors[1].append(abs(V1 - V_emp))
             transition_errors[2].append(abs(V2 - V_emp))
@@ -1162,11 +1167,13 @@ def compare_formulas():
             transition_errors[6].append(abs(V6 - V_emp))
             transition_errors[7].append(abs(V7 - V_emp))
             transition_errors[8].append(abs(V8 - V_emp))
+            transition_errors[9.1].append(abs(V9_1 - V_emp))
     
-    for version in [1, 2, 3, 4, 5, 6, 7, 8]:
+    for version in [1, 2, 3, 4, 5, 6, 7, 8, 9.1]:
         if transition_errors[version]:
             trans_error = np.mean(transition_errors[version])
-            print(f"Formula V{version}: {trans_error:.1%}", end="")
+            version_str = f"V{version}" if version != 9.1 else "V9.1"
+            print(f"Formula {version_str}: {trans_error:.1%}", end="")
             
             if trans_error < 0.15:
                 print(f"  ✅ Excellent - hardware ready!")
@@ -1179,12 +1186,15 @@ def compare_formulas():
     
     # Recommend best formula
     best_version = min(transition_errors.keys(), key=lambda v: np.mean(transition_errors[v]))
-    print(f"\n🏆 BEST FORMULA: V{best_version} (mean error {np.mean(errors[best_version]):.1%})")
+    best_version_str = f"V{best_version}" if best_version != 9.1 else "V9.1"
+    print(f"\n🏆 BEST FORMULA: {best_version_str} (mean error {np.mean(errors[best_version]):.1%})")
     
     if np.mean(errors[best_version]) < 0.25:
-        print(f"\n✅ HYPOTHESIS VALIDATED with V{best_version}")
-        print(f"   → Update production code to use formula V{best_version}")
+        print(f"\n✅ HYPOTHESIS VALIDATED with {best_version_str}")
+        print(f"   → Update production code to use formula {best_version_str}")
         print(f"   → Proceed to hardware with confidence")
+        if best_version == 9.1:
+            print(f"   → V9.1 'Goldilocks' formula improves where V8 fails, preserves where V8 excels")
     else:
         print(f"\n⚠️ Best formula still has {np.mean(errors[best_version]):.1%} error")
         print(f"   → Consider empirical calibration")
