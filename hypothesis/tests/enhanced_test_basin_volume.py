@@ -6,7 +6,7 @@ Runtime: ~10 minutes
 """
 
 import numpy as np
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt  # Optional - for plotting
 from dataclasses import dataclass
 
 # ============================================================================
@@ -28,11 +28,33 @@ class SimulationConfig:
 def calculate_sigma_omega(Q10, sigma_T, tau_ref):
     return (2*np.pi / tau_ref) * (abs(np.log(Q10)) / 10) * sigma_T
 
-def predict_basin_volume(N, sigma_omega, omega_mean, K, alpha=1.5):
+def predict_basin_volume(N, sigma_omega, omega_mean, K, alpha=1.5, formula_version=2):
+    """
+    Basin volume with multiple formula options
+    
+    Version 1 (original): V = 1 - (K_c/K)^(2N)  [TOO OPTIMISTIC]
+    Version 2 (softer):   V = 1 - (K_c/K)^N     [GENTLER TRANSITION]
+    Version 3 (tanh):     V = tanh((K-K_c)/(K_c*β))^N  [SMOOTH S-CURVE]
+    """
     K_c = 2 * sigma_omega
+    
     if K <= K_c:
         return 0.0
-    basin_volume = 1.0 - (K_c / K) ** (2 * N)
+    
+    if formula_version == 1:
+        # Original: Too aggressive near K_c
+        basin_volume = 1.0 - (K_c / K) ** (2 * N)
+    
+    elif formula_version == 2:
+        # Softer: Exponent = N instead of 2N
+        basin_volume = 1.0 - (K_c / K) ** N
+    
+    elif formula_version == 3:
+        # Smooth tanh transition with tunable width
+        beta = 0.5  # Transition width parameter
+        margin = (K - K_c) / (K_c * beta)
+        basin_volume = np.tanh(margin) ** N
+    
     return min(basin_volume, 1.0)
 
 def calculate_order_parameter(phases):
@@ -399,5 +421,107 @@ def run_enhanced_mvp():
             print(f"   Formula needs revision first")
             print(f"   Try: Alternative basin volume formulas")
 
+def compare_formulas():
+    """
+    Compare different basin volume formulas against empirical data
+    """
+    print("\n" + "="*70)
+    print("FORMULA COMPARISON TEST")
+    print("="*70)
+    print("\nTesting 3 different basin volume formulas:")
+    print("  V1: 1 - (K_c/K)^(2N)  [Original - too optimistic]")
+    print("  V2: 1 - (K_c/K)^N     [Softer exponent]")
+    print("  V3: tanh((K-K_c)/(K_c*β))^N  [Smooth S-curve]\n")
+    
+    base_config = SimulationConfig(N=10, Q10=1.1, sigma_T=5.0, tau_ref=24.0, t_max=30*24, dt=0.1)
+    sigma_omega = calculate_sigma_omega(base_config.Q10, base_config.sigma_T, base_config.tau_ref)
+    K_c = 2 * sigma_omega
+    omega_mean = 2*np.pi / base_config.tau_ref
+    
+    # Focus on transition regime
+    K_ratios = [1.0, 1.1, 1.2, 1.3, 1.5, 1.7, 2.0]
+    
+    # Run simulations once and compare all formulas
+    empirical_data = []
+    for K_ratio in K_ratios:
+        config = SimulationConfig(
+            N=base_config.N, K=K_ratio * K_c, Q10=base_config.Q10,
+            sigma_T=base_config.sigma_T, tau_ref=base_config.tau_ref,
+            t_max=base_config.t_max, dt=base_config.dt
+        )
+        
+        converged = 0
+        trials = 50
+        for trial in range(trials):
+            result = simulate_kuramoto(config)
+            last_day_R = result['R_history'][-int(24/config.dt):]
+            if np.mean(last_day_R) > config.sync_threshold:
+                converged += 1
+        
+        empirical_data.append({
+            'K_ratio': K_ratio,
+            'K': config.K,
+            'V_empirical': converged / trials
+        })
+    
+    # Evaluate each formula
+    print(f"{'K/K_c':<8} {'Empirical':<12} {'V1 (2N)':<12} {'V2 (N)':<12} {'V3 (tanh)':<12}")
+    print("-" * 70)
+    
+    errors = {1: [], 2: [], 3: []}
+    
+    for data in empirical_data:
+        K_ratio = data['K_ratio']
+        K = data['K']
+        V_emp = data['V_empirical']
+        
+        V1 = predict_basin_volume(base_config.N, sigma_omega, omega_mean, K, formula_version=1)
+        V2 = predict_basin_volume(base_config.N, sigma_omega, omega_mean, K, formula_version=2)
+        V3 = predict_basin_volume(base_config.N, sigma_omega, omega_mean, K, formula_version=3)
+        
+        print(f"{K_ratio:<8.1f} {V_emp:<12.1%} {V1:<12.1%} {V2:<12.1%} {V3:<12.1%}")
+        
+        # Calculate errors for K > K_c
+        if K > K_c and V_emp > 0.1:
+            errors[1].append(abs(V1 - V_emp) / V_emp)
+            errors[2].append(abs(V2 - V_emp) / V_emp)
+            errors[3].append(abs(V3 - V_emp) / V_emp)
+    
+    # Summary
+    print("\n" + "="*70)
+    print("MEAN ABSOLUTE ERROR (transition regime K/K_c ∈ [1.1, 1.5]):")
+    print("-" * 70)
+    
+    for version in [1, 2, 3]:
+        mean_error = np.mean(errors[version])
+        print(f"Formula V{version}: {mean_error:.1%}", end="")
+        
+        if mean_error < 0.20:
+            print(f"  ✅ Excellent")
+        elif mean_error < 0.30:
+            print(f"  ✅ Good")
+        elif mean_error < 0.40:
+            print(f"  ⚠️ Acceptable")
+        else:
+            print(f"  ❌ Poor")
+    
+    # Recommend best formula
+    best_version = min(errors.keys(), key=lambda v: np.mean(errors[v]))
+    print(f"\n🏆 BEST FORMULA: V{best_version} (mean error {np.mean(errors[best_version]):.1%})")
+    
+    if np.mean(errors[best_version]) < 0.25:
+        print(f"\n✅ HYPOTHESIS VALIDATED with V{best_version}")
+        print(f"   → Update production code to use formula V{best_version}")
+        print(f"   → Proceed to hardware with confidence")
+    else:
+        print(f"\n⚠️ Best formula still has {np.mean(errors[best_version]):.1%} error")
+        print(f"   → Consider empirical calibration")
+        print(f"   → Or test with more formula variations")
+
 if __name__ == "__main__":
-    run_enhanced_mvp()
+    import sys
+    
+    if len(sys.argv) > 1 and sys.argv[1] == "--compare":
+        compare_formulas()
+    else:
+        run_enhanced_mvp()
