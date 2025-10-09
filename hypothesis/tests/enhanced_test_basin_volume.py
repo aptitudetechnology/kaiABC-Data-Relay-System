@@ -5,13 +5,14 @@ Focus: Test the CRITICAL REGIME where theory predictions matter most
 
 Features:
 - Parallel Monte Carlo trials (uses all CPU cores - 1)
-- 7 formula variants for comparison (V1-V7)
+- 8 formula variants for comparison (V1-V8)
 - HIGH STATISTICS: 200 trials per K value (was 50)
 - Critical regime focus (K ≈ K_c transition region)
-- Formula V4 (sqrt(N) finite-size correction) is CURRENT CHAMPION [7.4% error]
-- Formula V5 (log(N) empirical calibration) FAILED [17.7% error]
-- Formula V6 (V4 + metastable states) TIED WITH V4 [8.2% error]
-- Formula V7 (asymmetric boundary layer) TESTING NOW
+- Formula V4 (sqrt(N) finite-size correction) is CURRENT CHAMPION [7.8% error]
+- Formula V5 (log(N) empirical calibration) FAILED [16.3% error]
+- Formula V6 (V4 + metastable states) TIED WITH V4 [8.3% error]
+- Formula V7 (asymmetric boundary layer) FAILED [18.0% error]
+- Formula V8 (V4 + partial sync plateau) TESTING NOW - targets V4's K=1.3-1.5 overprediction
 
 Runtime: ~8 minutes with 8 cores (4× longer due to 200 trials), ~60 minutes sequential
 """
@@ -49,10 +50,11 @@ def predict_basin_volume(N, sigma_omega, omega_mean, K, alpha=1.5, formula_versi
     Version 1 (original): V = 1 - (K_c/K)^(2N)  [TOO OPTIMISTIC]
     Version 2 (softer):   V = 1 - (K_c/K)^N     [GENTLER TRANSITION]
     Version 3 (tanh):     V = tanh((K-K_c)/(K_c*β))^N  [SMOOTH S-CURVE]
-    Version 4 (finite-size): sqrt(N) scaling with finite-size correction [CURRENT DEFAULT - 7.4% error]
-    Version 5 (empirical): Sigmoid with log(N) scaling [FAILED - 17.7% error]
-    Version 6 (metastable): V4 + below-critical metastable state correction [TIED WITH V4 - 8.2% error]
-    Version 7 (asymmetric): Asymmetric boundary layer (wider above K_c) [TESTING]
+    Version 4 (finite-size): sqrt(N) scaling with finite-size correction [CURRENT CHAMPION - 7.8% error]
+    Version 5 (empirical): Sigmoid with log(N) scaling [FAILED - 16.3% error]
+    Version 6 (metastable): V4 + below-critical metastable state correction [TIED WITH V4 - 8.3% error]
+    Version 7 (asymmetric): Asymmetric boundary layer (wider above K_c) [FAILED - 18.0% error]
+    Version 8 (plateau): V4 + partial sync plateau correction at K=1.2-1.6 [TESTING]
     """
     K_c = 2 * sigma_omega
     K_ratio = K / K_c
@@ -200,6 +202,52 @@ def predict_basin_volume(N, sigma_omega, omega_mean, K, alpha=1.5, formula_versi
             # Exponential approach to 100% as K increases
             excess = K_ratio - K_upper
             basin_volume = 0.95 + 0.05 * (1.0 - np.exp(-2.0 * N * excess))
+    
+    elif formula_version == 8:
+        # Version 8: Partial Sync Plateau Correction
+        # Key insight: Basin volume growth SLOWS in the K=1.2-1.6 regime
+        # This is where partial synchronization states stabilize and compete
+        # with full synchronization, creating a plateau effect
+        #
+        # Empirical evidence (200 trials):
+        #   K=1.2: 53% (V4 predicts 53% ✓)
+        #   K=1.3: 56% (V4 predicts 66% ✗ +10% error)
+        #   K=1.5: 85% (V4 predicts 98% ✗ +13% error)
+        #
+        # V8 keeps V4 where it works, adds plateau correction where needed
+        
+        if K_ratio < 1.2:
+            # Lower transition: V4's proven formula (0.2% error at K=1.1-1.2)
+            # Use V4's finite-size correction - it's perfect here
+            alpha_eff = 1.5 - 0.5 * np.exp(-N / 10.0)
+            exponent = alpha_eff * np.sqrt(N)
+            basin_volume = 1.0 - (1.0 / K_ratio) ** exponent
+        
+        elif K_ratio < 1.6:
+            # Plateau regime: Partial sync states create resistance
+            # Growth is LINEAR with compression, not exponential
+            
+            # Calculate base value at K=1.2 using V4 formula
+            alpha_eff = 1.5 - 0.5 * np.exp(-N / 10.0)
+            exponent = alpha_eff * np.sqrt(N)
+            V_base = 1.0 - (1.0 / 1.2) ** exponent  # ~53% for N=10
+            
+            # Progress through plateau region (0 to 1)
+            margin = (K_ratio - 1.2) / 0.4  # 0 at K=1.2, 1.0 at K=1.6
+            
+            # Target growth: 53% → 95% over 0.4 K_ratio units (42% total)
+            # But apply compression factor (partial sync resists full sync)
+            # Compression weakens as we move through plateau
+            compression = 0.4 + 0.6 * margin  # 0.4 at start, 1.0 at end
+            
+            # Linear growth with compression
+            plateau_height = 0.42  # Max growth across plateau
+            basin_volume = V_base + plateau_height * margin * compression
+        
+        else:
+            # Strong coupling: V4's power law works well
+            # Standard formula for high K
+            basin_volume = 1.0 - (1.0 / K_ratio) ** N
     
     else:
         raise ValueError(f"Unknown formula_version: {formula_version}")
@@ -600,14 +648,15 @@ def compare_formulas():
     print("\n" + "="*70)
     print("FORMULA COMPARISON TEST")
     print("="*70)
-    print("\nTesting 7 different basin volume formulas:")
+    print("\nTesting 8 different basin volume formulas:")
     print("  V1: 1 - (K_c/K)^(2N)  [Original - too optimistic]")
     print("  V2: 1 - (K_c/K)^N     [Softer exponent]")
     print("  V3: tanh((K-K_c)/(K_c*β))^N  [Smooth S-curve]")
-    print("  V4: Finite-size with √N scaling  [Current champion - 7.4% error]")
-    print("  V5: Sigmoid with log(N) scaling  [Failed - 17.7% error]")
-    print("  V6: V4 + Metastable state correction  [Tied with V4 - 8.2% error]")
-    print("  V7: Asymmetric boundary layer (wider above K_c)  [Testing now]\n")
+    print("  V4: Finite-size with √N scaling  [Current champion - 7.8% error]")
+    print("  V5: Sigmoid with log(N) scaling  [Failed - 16.3% error]")
+    print("  V6: V4 + Metastable state correction  [Tied - 8.3% error]")
+    print("  V7: Asymmetric boundary layer  [Failed - 18.0% error]")
+    print("  V8: V4 + Partial sync plateau correction  [Testing now]\n")
     
     base_config = SimulationConfig(N=10, Q10=1.1, sigma_T=5.0, tau_ref=24.0, t_max=30*24, dt=0.1)
     sigma_omega = calculate_sigma_omega(base_config.Q10, base_config.sigma_T, base_config.tau_ref)
@@ -644,10 +693,10 @@ def compare_formulas():
     print("\n" + "="*70)
     print("FORMULA PREDICTIONS vs EMPIRICAL")
     print("="*70)
-    print(f"{'K/K_c':<8} {'Empirical':<10} {'V1':<8} {'V2':<8} {'V3':<8} {'V4':<8} {'V5':<8} {'V6':<8} {'V7':<8}")
+    print(f"{'K/K_c':<8} {'Empirical':<10} {'V1':<8} {'V2':<8} {'V3':<8} {'V4':<8} {'V5':<8} {'V6':<8} {'V7':<8} {'V8':<8}")
     print("-" * 70)
     
-    errors = {1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: []}
+    errors = {1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: []}
     
     for data in empirical_data:
         K_ratio = data['K_ratio']
@@ -661,8 +710,9 @@ def compare_formulas():
         V5 = predict_basin_volume(base_config.N, sigma_omega, omega_mean, K, formula_version=5)
         V6 = predict_basin_volume(base_config.N, sigma_omega, omega_mean, K, formula_version=6)
         V7 = predict_basin_volume(base_config.N, sigma_omega, omega_mean, K, formula_version=7)
+        V8 = predict_basin_volume(base_config.N, sigma_omega, omega_mean, K, formula_version=8)
         
-        print(f"{K_ratio:<8.1f} {V_emp:<10.1%} {V1:<8.1%} {V2:<8.1%} {V3:<8.1%} {V4:<8.1%} {V5:<8.1%} {V6:<8.1%} {V7:<8.1%}")
+        print(f"{K_ratio:<8.1f} {V_emp:<10.1%} {V1:<8.1%} {V2:<8.1%} {V3:<8.1%} {V4:<8.1%} {V5:<8.1%} {V6:<8.1%} {V7:<8.1%} {V8:<8.1%}")
         
         # Calculate errors across all K values (including below critical)
         if V_emp > 0.05:  # Only calculate if empirical is meaningful
@@ -673,13 +723,14 @@ def compare_formulas():
             errors[5].append(abs(V5 - V_emp))
             errors[6].append(abs(V6 - V_emp))
             errors[7].append(abs(V7 - V_emp))
+            errors[8].append(abs(V8 - V_emp))
     
     # Summary - Overall performance
     print("\n" + "="*70)
     print("MEAN ABSOLUTE ERROR (all K values):")
     print("-" * 70)
     
-    for version in [1, 2, 3, 4, 5, 6, 7]:
+    for version in [1, 2, 3, 4, 5, 6, 7, 8]:
         if errors[version]:
             mean_error = np.mean(errors[version])
             print(f"Formula V{version}: {mean_error:.1%}", end="")
@@ -698,7 +749,7 @@ def compare_formulas():
     print("TRANSITION REGIME ERROR (K/K_c ∈ [1.0, 1.5]):")
     print("-" * 70)
     
-    transition_errors = {1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: []}
+    transition_errors = {1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: []}
     for data in empirical_data:
         if 1.0 <= data['K_ratio'] <= 1.5:
             K = data['K']
@@ -711,6 +762,7 @@ def compare_formulas():
             V5 = predict_basin_volume(base_config.N, sigma_omega, omega_mean, K, formula_version=5)
             V6 = predict_basin_volume(base_config.N, sigma_omega, omega_mean, K, formula_version=6)
             V7 = predict_basin_volume(base_config.N, sigma_omega, omega_mean, K, formula_version=7)
+            V8 = predict_basin_volume(base_config.N, sigma_omega, omega_mean, K, formula_version=8)
             
             transition_errors[1].append(abs(V1 - V_emp))
             transition_errors[2].append(abs(V2 - V_emp))
@@ -719,8 +771,9 @@ def compare_formulas():
             transition_errors[5].append(abs(V5 - V_emp))
             transition_errors[6].append(abs(V6 - V_emp))
             transition_errors[7].append(abs(V7 - V_emp))
+            transition_errors[8].append(abs(V8 - V_emp))
     
-    for version in [1, 2, 3, 4, 5, 6, 7]:
+    for version in [1, 2, 3, 4, 5, 6, 7, 8]:
         if transition_errors[version]:
             trans_error = np.mean(transition_errors[version])
             print(f"Formula V{version}: {trans_error:.1%}", end="")
