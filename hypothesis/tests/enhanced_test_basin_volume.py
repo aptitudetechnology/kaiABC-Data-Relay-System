@@ -1164,6 +1164,205 @@ def test_v9_improvements():
     print("\nNext step: Run full comparison against empirical data")
     print("Command: python3 enhanced_test_basin_volume.py --compare-v9")
 
+def compare_formulas_with_v9():
+    """
+    Compare V8 (champion) vs V9 (improvements) against empirical data
+    
+    This runs 200 Monte Carlo trials per K value and compares both formulas
+    against empirical synchronization rates. Statistical significance testing
+    determines if V9's improvements are meaningful.
+    
+    Usage: python3 enhanced_test_basin_volume.py --compare-v9
+    Runtime: ~8 minutes on 8 cores
+    """
+    print("\n" + "="*70)
+    print("V8 vs V9 EMPIRICAL VALIDATION")
+    print("="*70)
+    print("\nComparing formulas against 200 Monte Carlo trials per K value:")
+    print("  V8: Partial sync plateau [CHAMPION - 6.6% error]")
+    print("  V9: V8 + below-critical floor + finite-time correction [TARGET: <5%]\n")
+    
+    base_config = SimulationConfig(N=10, Q10=1.1, sigma_T=5.0, tau_ref=24.0, t_max=30*24, dt=0.1)
+    sigma_omega = calculate_sigma_omega(base_config.Q10, base_config.sigma_T, base_config.tau_ref)
+    K_c = 2 * sigma_omega
+    omega_mean = 2*np.pi / base_config.tau_ref
+    
+    # Extended range including below critical and transition
+    K_ratios = [0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.5, 1.7, 2.0, 2.5]
+    
+    print(f"Running Monte Carlo trials (200 per K value)...")
+    print(f"K_c = {K_c:.4f} rad/hr\n")
+    
+    # Run simulations once and compare both formulas
+    empirical_data = []
+    for K_ratio in K_ratios:
+        config = SimulationConfig(
+            N=base_config.N, K=K_ratio * K_c, Q10=base_config.Q10,
+            sigma_T=base_config.sigma_T, tau_ref=base_config.tau_ref,
+            t_max=base_config.t_max, dt=base_config.dt
+        )
+        
+        trials = 200
+        converged = run_parallel_trials(config, trials)
+        
+        empirical_data.append({
+            'K_ratio': K_ratio,
+            'K': config.K,
+            'V_empirical': converged / trials
+        })
+        
+        print(f"  K/K_c = {K_ratio:.1f}: {converged}/{trials} converged ({converged/trials:.1%})")
+    
+    # Evaluate both formulas
+    print("\n" + "="*70)
+    print("PREDICTIONS vs EMPIRICAL")
+    print("="*70)
+    print(f"{'K/K_c':<8} {'Empirical':<12} {'V8':<12} {'V8 Err':<10} {'V9':<12} {'V9 Err':<10} {'Winner'}")
+    print("-" * 90)
+    
+    errors_v8 = []
+    errors_v9 = []
+    
+    for data in empirical_data:
+        K_ratio = data['K_ratio']
+        K = data['K']
+        V_emp = data['V_empirical']
+        
+        V8 = predict_basin_volume(base_config.N, sigma_omega, omega_mean, K, formula_version=8)
+        V9 = predict_basin_volume_v9(base_config.N, sigma_omega, omega_mean, K)
+        
+        # Calculate absolute errors
+        err_v8 = abs(V8 - V_emp)
+        err_v9 = abs(V9 - V_emp)
+        
+        errors_v8.append(err_v8)
+        errors_v9.append(err_v9)
+        
+        # Determine winner
+        if err_v9 < err_v8 * 0.9:  # V9 is significantly better (10%+ improvement)
+            winner = "✅ V9"
+        elif err_v8 < err_v9 * 0.9:  # V8 is significantly better
+            winner = "V8"
+        else:  # Tie (within 10%)
+            winner = "~"
+        
+        print(f"{K_ratio:<8.1f} {V_emp:<12.1%} {V8:<12.1%} {err_v8:<10.1%} "
+              f"{V9:<12.1%} {err_v9:<10.1%} {winner}")
+    
+    # Overall summary
+    print("\n" + "="*70)
+    print("OVERALL PERFORMANCE")
+    print("="*70)
+    
+    mean_err_v8 = np.mean(errors_v8)
+    mean_err_v9 = np.mean(errors_v9)
+    
+    improvement = (mean_err_v8 - mean_err_v9) / mean_err_v8 * 100
+    
+    print(f"\nV8 Mean Absolute Error: {mean_err_v8:.1%}")
+    print(f"V9 Mean Absolute Error: {mean_err_v9:.1%}")
+    print(f"Improvement: {improvement:+.1f}%")
+    
+    # Regime-specific analysis
+    print("\n" + "="*70)
+    print("REGIME-SPECIFIC ANALYSIS")
+    print("="*70)
+    
+    # Below critical
+    below_indices = [i for i, d in enumerate(empirical_data) if d['K_ratio'] < 1.0]
+    if below_indices:
+        below_err_v8 = np.mean([errors_v8[i] for i in below_indices])
+        below_err_v9 = np.mean([errors_v9[i] for i in below_indices])
+        print(f"\n1. BELOW CRITICAL (K < K_c):")
+        print(f"   V8 error: {below_err_v8:.1%}")
+        print(f"   V9 error: {below_err_v9:.1%}")
+        print(f"   Improvement: {(below_err_v8 - below_err_v9)/below_err_v8*100:+.1f}%")
+        if below_err_v9 < below_err_v8 * 0.5:
+            print(f"   ✅ V9's floor dramatically improves below-critical predictions")
+    
+    # Transition regime
+    trans_indices = [i for i, d in enumerate(empirical_data) if 1.0 <= d['K_ratio'] < 1.5]
+    if trans_indices:
+        trans_err_v8 = np.mean([errors_v8[i] for i in trans_indices])
+        trans_err_v9 = np.mean([errors_v9[i] for i in trans_indices])
+        print(f"\n2. TRANSITION REGIME (K_c ≤ K < 1.5×K_c):")
+        print(f"   V8 error: {trans_err_v8:.1%}")
+        print(f"   V9 error: {trans_err_v9:.1%}")
+        print(f"   Improvement: {(trans_err_v8 - trans_err_v9)/trans_err_v8*100:+.1f}%")
+        if abs(trans_err_v9 - trans_err_v8) < 0.02:
+            print(f"   ✅ V9 preserves V8's excellent transition performance")
+    
+    # Strong coupling
+    strong_indices = [i for i, d in enumerate(empirical_data) if d['K_ratio'] >= 1.6]
+    if strong_indices:
+        strong_err_v8 = np.mean([errors_v8[i] for i in strong_indices])
+        strong_err_v9 = np.mean([errors_v9[i] for i in strong_indices])
+        print(f"\n3. STRONG COUPLING (K ≥ 1.6×K_c):")
+        print(f"   V8 error: {strong_err_v8:.1%}")
+        print(f"   V9 error: {strong_err_v9:.1%}")
+        print(f"   Improvement: {(strong_err_v8 - strong_err_v9)/strong_err_v8*100:+.1f}%")
+        if strong_err_v9 < strong_err_v8 * 0.7:
+            print(f"   ✅ V9's finite-time correction reduces overprediction")
+    
+    # Final recommendation
+    print("\n" + "="*70)
+    print("FINAL RECOMMENDATION")
+    print("="*70)
+    
+    if mean_err_v9 < 0.05:  # <5% target
+        print(f"\n🏆 V9 ACHIEVES <5% ERROR TARGET!")
+        print(f"   Mean error: {mean_err_v9:.1%}")
+        print(f"   Status: PUBLICATION READY")
+        print(f"\n✅ ACTIONS:")
+        print(f"   1. Update production code to use Formula V9")
+        print(f"   2. Proceed to hardware with high confidence")
+        print(f"   3. Expected hardware success rate: >85% at K=1.5×K_c")
+        print(f"   4. Include V9 formula in paper as improved model")
+    elif mean_err_v9 < mean_err_v8:
+        print(f"\n✅ V9 IMPROVES OVER V8")
+        print(f"   V8 error: {mean_err_v8:.1%}")
+        print(f"   V9 error: {mean_err_v9:.1%}")
+        print(f"   Improvement: {improvement:+.1f}%")
+        print(f"\n✅ ACTIONS:")
+        print(f"   1. Use V9 as default formula")
+        print(f"   2. Proceed to hardware with confidence")
+        print(f"   3. Both formulas are hardware-ready")
+    else:
+        print(f"\n⚠️ V9 DOES NOT IMPROVE OVER V8")
+        print(f"   V8 error: {mean_err_v8:.1%} (better)")
+        print(f"   V9 error: {mean_err_v9:.1%}")
+        print(f"\n✅ ACTIONS:")
+        print(f"   1. Keep V8 as production formula")
+        print(f"   2. V8 is already hardware-ready (6.6% error)")
+        print(f"   3. V9's improvements may not be statistically significant")
+    
+    # Statistical significance test
+    print("\n" + "="*70)
+    print("STATISTICAL SIGNIFICANCE")
+    print("="*70)
+    
+    try:
+        from scipy import stats
+        # Paired t-test on absolute errors
+        t_stat, p_value = stats.ttest_rel(errors_v8, errors_v9)
+        
+        print(f"\nPaired t-test (V8 vs V9 errors):")
+        print(f"  t-statistic: {t_stat:.3f}")
+        print(f"  p-value: {p_value:.4f}")
+        
+        if p_value < 0.05:
+            if mean_err_v9 < mean_err_v8:
+                print(f"  ✅ V9 is SIGNIFICANTLY better than V8 (p < 0.05)")
+            else:
+                print(f"  ⚠️ V8 is SIGNIFICANTLY better than V9 (p < 0.05)")
+        else:
+            print(f"  ~ No significant difference (p ≥ 0.05)")
+            print(f"  Both formulas perform similarly")
+    except ImportError:
+        print(f"\n⚠️ scipy not available - skipping statistical test")
+        print(f"  Install with: pip install scipy")
+        print(f"  For now, using {improvement:.1f}% improvement as heuristic")
+
 def test_hardware_regime():
     """
     PLACEHOLDER: Focused test on K/K_c ∈ [1.1, 1.5] where hardware will operate
@@ -1200,6 +1399,8 @@ if __name__ == "__main__":
     
     if len(sys.argv) > 1 and sys.argv[1] == "--compare":
         compare_formulas()
+    elif len(sys.argv) > 1 and sys.argv[1] == "--compare-v9":
+        compare_formulas_with_v9()
     elif len(sys.argv) > 1 and sys.argv[1] == "--test-v9":
         test_v9_improvements()
     elif len(sys.argv) > 1 and sys.argv[1] == "--hardware":
