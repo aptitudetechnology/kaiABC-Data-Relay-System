@@ -5,13 +5,15 @@ Focus: Test the CRITICAL REGIME where theory predictions matter most
 
 Features:
 - Parallel Monte Carlo trials (uses all CPU cores - 1)
-- 6 formula variants for comparison (V1-V6)
+- 7 formula variants for comparison (V1-V7)
+- HIGH STATISTICS: 200 trials per K value (was 50)
 - Critical regime focus (K ≈ K_c transition region)
-- Formula V4 (sqrt(N) finite-size correction) is DEFAULT [7.8% error]
-- Formula V5 (log(N) empirical calibration) FAILED [15.1% error]
-- Formula V6 (V4 + metastable states) is TESTING NOW
+- Formula V4 (sqrt(N) finite-size correction) is CURRENT CHAMPION [7.4% error]
+- Formula V5 (log(N) empirical calibration) FAILED [17.7% error]
+- Formula V6 (V4 + metastable states) TIED WITH V4 [8.2% error]
+- Formula V7 (asymmetric boundary layer) TESTING NOW
 
-Runtime: ~2 minutes with 8 cores, ~15 minutes sequential
+Runtime: ~8 minutes with 8 cores (4× longer due to 200 trials), ~60 minutes sequential
 """
 
 import numpy as np
@@ -47,9 +49,10 @@ def predict_basin_volume(N, sigma_omega, omega_mean, K, alpha=1.5, formula_versi
     Version 1 (original): V = 1 - (K_c/K)^(2N)  [TOO OPTIMISTIC]
     Version 2 (softer):   V = 1 - (K_c/K)^N     [GENTLER TRANSITION]
     Version 3 (tanh):     V = tanh((K-K_c)/(K_c*β))^N  [SMOOTH S-CURVE]
-    Version 4 (finite-size): sqrt(N) scaling with finite-size correction [CURRENT DEFAULT - 7.8% error]
-    Version 5 (empirical): Sigmoid with log(N) scaling [FAILED - 15.1% error]
-    Version 6 (metastable): V4 + below-critical metastable state correction [TESTING]
+    Version 4 (finite-size): sqrt(N) scaling with finite-size correction [CURRENT DEFAULT - 7.4% error]
+    Version 5 (empirical): Sigmoid with log(N) scaling [FAILED - 17.7% error]
+    Version 6 (metastable): V4 + below-critical metastable state correction [TIED WITH V4 - 8.2% error]
+    Version 7 (asymmetric): Asymmetric boundary layer (wider above K_c) [TESTING]
     """
     K_c = 2 * sigma_omega
     K_ratio = K / K_c
@@ -158,6 +161,45 @@ def predict_basin_volume(N, sigma_omega, omega_mean, K, alpha=1.5, formula_versi
             # V4's strong coupling formula
             # Standard power law at high coupling
             basin_volume = 1.0 - (1.0 / K_ratio) ** N
+    
+    elif formula_version == 7:
+        # Version 7: Asymmetric Boundary Layer
+        # Key insight: Transition is WIDER above K_c than below
+        # Below K_c: Sharp cutoff (hard to sync without enough coupling)
+        # Above K_c: Gradual growth (competing with partial sync states)
+        
+        # Asymmetric transition widths (scaled by network size)
+        delta_lower = 0.10 * np.sqrt(10.0 / N)  # Narrow below K_c
+        delta_upper = 0.50 * np.sqrt(10.0 / N)  # Wide above K_c
+        
+        K_lower = 1.0 - delta_lower  # ~0.90 for N=10
+        K_upper = 1.0 + delta_upper  # ~1.50 for N=10
+        
+        if K_ratio < K_lower:
+            # Deep subcritical: Metastable clusters with quadratic growth
+            basin_volume = 0.20 * (K_ratio / K_lower) ** 2
+        
+        elif K_ratio < 1.0:
+            # Lower boundary: Rapid exponential approach to K_c
+            # Sharp because disorder dominates until very close to K_c
+            margin = (K_ratio - K_lower) / delta_lower
+            base = 0.20 * (K_lower) ** 2  # Starting value from previous regime
+            basin_volume = base + (0.25 - base) * (1.0 - np.exp(-4.0 * margin))
+        
+        elif K_ratio < K_upper:
+            # Upper boundary: Slower sigmoid growth above K_c
+            # Wider because competing between partial and full sync
+            margin = (K_ratio - 1.0) / delta_upper
+            # Sigmoid centered at K=K_c with gradual S-curve
+            # Exponent scales with sqrt(N) for finite-size effects
+            exponent = 2.0 * np.sqrt(N) * margin
+            basin_volume = 0.25 + 0.70 / (1.0 + np.exp(-exponent))
+        
+        else:
+            # Supercritical: Full sync dominates
+            # Exponential approach to 100% as K increases
+            excess = K_ratio - K_upper
+            basin_volume = 0.95 + 0.05 * (1.0 - np.exp(-2.0 * N * excess))
     
     else:
         raise ValueError(f"Unknown formula_version: {formula_version}")
@@ -558,13 +600,14 @@ def compare_formulas():
     print("\n" + "="*70)
     print("FORMULA COMPARISON TEST")
     print("="*70)
-    print("\nTesting 6 different basin volume formulas:")
+    print("\nTesting 7 different basin volume formulas:")
     print("  V1: 1 - (K_c/K)^(2N)  [Original - too optimistic]")
     print("  V2: 1 - (K_c/K)^N     [Softer exponent]")
     print("  V3: tanh((K-K_c)/(K_c*β))^N  [Smooth S-curve]")
-    print("  V4: Finite-size with √N scaling  [Current default - 7.8% error]")
-    print("  V5: Sigmoid with log(N) scaling  [Failed - 15.1% error]")
-    print("  V6: V4 + Metastable state correction  [Testing now]\n")
+    print("  V4: Finite-size with √N scaling  [Current champion - 7.4% error]")
+    print("  V5: Sigmoid with log(N) scaling  [Failed - 17.7% error]")
+    print("  V6: V4 + Metastable state correction  [Tied with V4 - 8.2% error]")
+    print("  V7: Asymmetric boundary layer (wider above K_c)  [Testing now]\n")
     
     base_config = SimulationConfig(N=10, Q10=1.1, sigma_T=5.0, tau_ref=24.0, t_max=30*24, dt=0.1)
     sigma_omega = calculate_sigma_omega(base_config.Q10, base_config.sigma_T, base_config.tau_ref)
@@ -574,7 +617,7 @@ def compare_formulas():
     # Extended range including below critical and transition
     K_ratios = [0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.5, 1.7, 2.0, 2.5]
     
-    print(f"Running Monte Carlo trials (50 per K value)...")
+    print(f"Running Monte Carlo trials (200 per K value for better statistics)...")
     print(f"K_c = {K_c:.4f} rad/hr\n")
     
     # Run simulations once and compare all formulas
@@ -586,7 +629,7 @@ def compare_formulas():
             t_max=base_config.t_max, dt=base_config.dt
         )
         
-        trials = 50
+        trials = 200  # Increased from 50 to reduce Monte Carlo variance
         converged = run_parallel_trials(config, trials)
         
         empirical_data.append({
@@ -601,10 +644,10 @@ def compare_formulas():
     print("\n" + "="*70)
     print("FORMULA PREDICTIONS vs EMPIRICAL")
     print("="*70)
-    print(f"{'K/K_c':<8} {'Empirical':<10} {'V1':<8} {'V2':<8} {'V3':<8} {'V4':<8} {'V5':<8} {'V6':<8}")
+    print(f"{'K/K_c':<8} {'Empirical':<10} {'V1':<8} {'V2':<8} {'V3':<8} {'V4':<8} {'V5':<8} {'V6':<8} {'V7':<8}")
     print("-" * 70)
     
-    errors = {1: [], 2: [], 3: [], 4: [], 5: [], 6: []}
+    errors = {1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: []}
     
     for data in empirical_data:
         K_ratio = data['K_ratio']
@@ -617,8 +660,9 @@ def compare_formulas():
         V4 = predict_basin_volume(base_config.N, sigma_omega, omega_mean, K, formula_version=4)
         V5 = predict_basin_volume(base_config.N, sigma_omega, omega_mean, K, formula_version=5)
         V6 = predict_basin_volume(base_config.N, sigma_omega, omega_mean, K, formula_version=6)
+        V7 = predict_basin_volume(base_config.N, sigma_omega, omega_mean, K, formula_version=7)
         
-        print(f"{K_ratio:<8.1f} {V_emp:<10.1%} {V1:<8.1%} {V2:<8.1%} {V3:<8.1%} {V4:<8.1%} {V5:<8.1%} {V6:<8.1%}")
+        print(f"{K_ratio:<8.1f} {V_emp:<10.1%} {V1:<8.1%} {V2:<8.1%} {V3:<8.1%} {V4:<8.1%} {V5:<8.1%} {V6:<8.1%} {V7:<8.1%}")
         
         # Calculate errors across all K values (including below critical)
         if V_emp > 0.05:  # Only calculate if empirical is meaningful
@@ -628,13 +672,14 @@ def compare_formulas():
             errors[4].append(abs(V4 - V_emp))
             errors[5].append(abs(V5 - V_emp))
             errors[6].append(abs(V6 - V_emp))
+            errors[7].append(abs(V7 - V_emp))
     
     # Summary - Overall performance
     print("\n" + "="*70)
     print("MEAN ABSOLUTE ERROR (all K values):")
     print("-" * 70)
     
-    for version in [1, 2, 3, 4, 5, 6]:
+    for version in [1, 2, 3, 4, 5, 6, 7]:
         if errors[version]:
             mean_error = np.mean(errors[version])
             print(f"Formula V{version}: {mean_error:.1%}", end="")
@@ -653,7 +698,7 @@ def compare_formulas():
     print("TRANSITION REGIME ERROR (K/K_c ∈ [1.0, 1.5]):")
     print("-" * 70)
     
-    transition_errors = {1: [], 2: [], 3: [], 4: [], 5: [], 6: []}
+    transition_errors = {1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: []}
     for data in empirical_data:
         if 1.0 <= data['K_ratio'] <= 1.5:
             K = data['K']
@@ -665,6 +710,7 @@ def compare_formulas():
             V4 = predict_basin_volume(base_config.N, sigma_omega, omega_mean, K, formula_version=4)
             V5 = predict_basin_volume(base_config.N, sigma_omega, omega_mean, K, formula_version=5)
             V6 = predict_basin_volume(base_config.N, sigma_omega, omega_mean, K, formula_version=6)
+            V7 = predict_basin_volume(base_config.N, sigma_omega, omega_mean, K, formula_version=7)
             
             transition_errors[1].append(abs(V1 - V_emp))
             transition_errors[2].append(abs(V2 - V_emp))
@@ -672,8 +718,9 @@ def compare_formulas():
             transition_errors[4].append(abs(V4 - V_emp))
             transition_errors[5].append(abs(V5 - V_emp))
             transition_errors[6].append(abs(V6 - V_emp))
+            transition_errors[7].append(abs(V7 - V_emp))
     
-    for version in [1, 2, 3, 4, 5, 6]:
+    for version in [1, 2, 3, 4, 5, 6, 7]:
         if transition_errors[version]:
             trans_error = np.mean(transition_errors[version])
             print(f"Formula V{version}: {trans_error:.1%}", end="")
