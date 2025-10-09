@@ -2,12 +2,20 @@
 """
 Enhanced KaiABC Basin Volume Test
 Focus: Test the CRITICAL REGIME where theory predictions matter most
-Runtime: ~10 minutes
+
+Features:
+- Parallel Monte Carlo trials (uses all CPU cores - 1)
+- 3 formula variants for comparison
+- Critical regime focus (K ≈ K_c transition region)
+
+Runtime: ~2 minutes with 8 cores, ~15 minutes sequential
 """
 
 import numpy as np
 # import matplotlib.pyplot as plt  # Optional - for plotting
 from dataclasses import dataclass
+from multiprocessing import Pool, cpu_count
+import os
 
 # ============================================================================
 # COPY YOUR CORE FUNCTIONS HERE (reuse your code)
@@ -101,6 +109,39 @@ def simulate_kuramoto(config, initial_phases=None, omegas=None):
         'final_R': R_history[-1]
     }
 
+def run_single_trial(config):
+    """
+    Wrapper for single trial - used for parallel processing
+    Returns True if converged, False otherwise
+    """
+    result = simulate_kuramoto(config)
+    last_day_R = result['R_history'][-int(24/config.dt):]
+    return np.mean(last_day_R) > config.sync_threshold
+
+def run_parallel_trials(config, num_trials, num_processes=None):
+    """
+    Run Monte Carlo trials in parallel
+    
+    Args:
+        config: SimulationConfig instance
+        num_trials: Number of trials to run
+        num_processes: Number of parallel processes (None = auto-detect)
+    
+    Returns:
+        Number of converged trials
+    """
+    if num_processes is None:
+        num_processes = max(1, cpu_count() - 1)  # Leave one core free
+    
+    # Create list of configs (one per trial)
+    configs = [config] * num_trials
+    
+    # Run in parallel
+    with Pool(processes=num_processes) as pool:
+        results = pool.map(run_single_trial, configs)
+    
+    return sum(results)
+
 # ============================================================================
 # ENHANCED TESTS FOR CRITICAL REGIME
 # ============================================================================
@@ -152,13 +193,8 @@ def test_critical_regime(base_config, trials_per_K=50, verbose=True):
         # Predict basin volume
         V_pred = predict_basin_volume(base_config.N, sigma_omega, omega_mean, config.K)
         
-        # Run trials
-        converged = 0
-        for trial in range(trials_per_K):
-            result = simulate_kuramoto(config)
-            last_day_R = result['R_history'][-int(24/config.dt):]
-            if np.mean(last_day_R) > config.sync_threshold:
-                converged += 1
+        # Run trials in parallel
+        converged = run_parallel_trials(config, trials_per_K)
         
         V_emp = converged / trials_per_K
         
@@ -314,13 +350,8 @@ def test_network_size_scaling(Q10=1.1, sigma_T=5.0, K_ratio=1.5, trials=30):
         
         V_pred = predict_basin_volume(N, sigma_omega, omega_mean, K)
         
-        # Run trials
-        converged = 0
-        for trial in range(trials):
-            result = simulate_kuramoto(config)
-            last_day_R = result['R_history'][-int(24/config.dt):]
-            if np.mean(last_day_R) > config.sync_threshold:
-                converged += 1
+        # Run trials in parallel
+        converged = run_parallel_trials(config, trials)
         
         V_emp = converged / trials
         error = abs(V_emp - V_pred) / V_pred if V_pred > 0.05 else float('inf')
@@ -450,13 +481,8 @@ def compare_formulas():
             t_max=base_config.t_max, dt=base_config.dt
         )
         
-        converged = 0
         trials = 50
-        for trial in range(trials):
-            result = simulate_kuramoto(config)
-            last_day_R = result['R_history'][-int(24/config.dt):]
-            if np.mean(last_day_R) > config.sync_threshold:
-                converged += 1
+        converged = run_parallel_trials(config, trials)
         
         empirical_data.append({
             'K_ratio': K_ratio,
