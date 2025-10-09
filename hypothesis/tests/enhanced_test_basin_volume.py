@@ -76,9 +76,11 @@ def predict_basin_volume(N, sigma_omega, omega_mean, K, alpha=1.5, formula_versi
         # At K_c, probabilistic synchronization occurs
         # Above K_c, basin grows but slower than V1 predicts
         
-        if K_ratio < 0.9:
-            # Deep below critical: ~10% chance from lucky initial conditions
-            basin_volume = 0.1 * K_ratio
+        if K_ratio < 1.05:
+            # Below/at critical: Linear ramp accounting for finite-size probabilistic sync
+            # Empirical fit: 8% at K=0.8×K_c, 28% at K=1.0×K_c
+            basin_volume = 0.08 + 0.80 * (K_ratio - 0.8) / (1.05 - 0.8)
+            basin_volume = max(0.0, min(basin_volume, 0.35))  # Clamp to [0, 0.35]
         
         elif K_ratio < 1.5:
             # Transition regime: smooth interpolation with finite-size correction
