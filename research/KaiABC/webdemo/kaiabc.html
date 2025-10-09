@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KaiABC Basin Volume Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            height: 350px;
+        }
+        .view-content {
+            display: none;
+        }
+        .view-content.active {
+            display: block;
+        }
+        .tab-active {
+            background-color: #4f46e5;
+            color: white;
+        }
+        .tab-inactive {
+            color: #64748b;
+        }
+        .tab-inactive:hover {
+            background-color: #f1f5f9;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen">
+    <div class="w-full h-full p-6 overflow-auto">
+        <div class="max-w-7xl mx-auto space-y-6">
+            <!-- Hero Header -->
+            <div class="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl shadow-2xl p-8 text-white">
+                <div class="flex items-start justify-between mb-6">
+                    <div>
+                        <h1 class="text-4xl font-bold mb-2">KaiABC Project</h1>
+                        <p class="text-indigo-100 text-lg">From Cyanobacteria to Distributed Hardware</p>
+                    </div>
+                    <div class="text-6xl">🏆</div>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-white/10 backdrop-blur rounded-lg p-4 border border-white/20">
+                        <div class="text-indigo-200 text-sm font-semibold mb-1">Biology</div>
+                        <div class="text-2xl font-bold">Kai Proteins</div>
+                        <div class="text-sm text-indigo-100">Synechococcus</div>
+                    </div>
+                    <div class="bg-white/10 backdrop-blur rounded-lg p-4 border border-white/20">
+                        <div class="text-indigo-200 text-sm font-semibold mb-1">Theory</div>
+                        <div class="text-2xl font-bold">V9.1 (5%)</div>
+                        <div class="text-sm text-indigo-100">Kuramoto model</div>
+                    </div>
+                    <div class="bg-white/10 backdrop-blur rounded-lg p-4 border border-white/20">
+                        <div class="text-indigo-200 text-sm font-semibold mb-1">Hardware</div>
+                        <div class="text-2xl font-bold">LoRa FDRS</div>
+                        <div class="text-sm text-indigo-100">10-byte packets</div>
+                    </div>
+                    <div class="bg-white/10 backdrop-blur rounded-lg p-4 border border-white/20">
+                        <div class="text-indigo-200 text-sm font-semibold mb-1">Performance</div>
+                        <div class="text-2xl font-bold">Ultra-low</div>
+                        <div class="text-sm text-indigo-100">Power consumption</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- View Tabs -->
+            <div class="flex gap-2 bg-white rounded-lg p-2 shadow flex-wrap">
+                <button class="tab-button flex-1 min-w-[120px] py-2 px-4 rounded-md font-medium transition-colors tab-active" data-view="overview">
+                    Overview
+                </button>
+                <button class="tab-button flex-1 min-w-[120px] py-2 px-4 rounded-md font-medium transition-colors tab-inactive" data-view="biology">
+                    Biology
+                </button>
+                <button class="tab-button flex-1 min-w-[120px] py-2 px-4 rounded-md font-medium transition-colors tab-inactive" data-view="theory">
+                    Theory
+                </button>
+                <button class="tab-button flex-1 min-w-[120px] py-2 px-4 rounded-md font-medium transition-colors tab-inactive" data-view="hardware">
+                    Hardware
+                </button>
+                <button class="tab-button flex-1 min-w-[120px] py-2 px-4 rounded-md font-medium transition-colors tab-inactive" data-view="performance">
+                    Performance
+                </button>
+            </div>
+
+            <!-- Overview View -->
+            <div id="overview-view" class="view-content active">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- System Architecture -->
+                    <div class="bg-white rounded-xl shadow-lg p-6">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                            <span class="text-2xl mr-2">🏗️</span>
+                            System Architecture
+                        </h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-lg border border-blue-200">
+                                <div class="text-blue-600 font-semibold mb-1">Biology</div>
+                                <div class="text-sm text-blue-800">Kai protein cycle</div>
+                                <div class="text-xs text-blue-600 mt-1">Synechococcus elongatus</div>
+                            </div>
+                            <div class="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-lg border border-green-200">
+                                <div class="text-green-600 font-semibold mb-1">Theory</div>
+                                <div class="text-sm text-green-800">Kuramoto model</div>
+                                <div class="text-xs text-green-600 mt-1">V9.1 formula (5% error)</div>
+                            </div>
+                            <div class="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-lg border border-purple-200">
+                                <div class="text-purple-600 font-semibold mb-1">Hardware</div>
+                                <div class="text-sm text-purple-800">LoRa FDRS network</div>
+                                <div class="text-xs text-purple-600 mt-1">10-byte packets</div>
+                            </div>
+                            <div class="bg-gradient-to-br from-orange-50 to-orange-100 p-4 rounded-lg border border-orange-200">
+                                <div class="text-orange-600 font-semibold mb-1">Performance</div>
+                                <div class="text-sm text-orange-800">Ultra-low power</div>
+                                <div class="text-xs text-orange-600 mt-1">0.3mA consumption</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Innovation Highlights -->
+                    <div class="bg-white rounded-xl shadow-lg p-6">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                            <span class="text-2xl mr-2">💡</span>
+                            Innovation Highlights
+                        </h3>
+                        <div class="space-y-3">
+                            <div class="flex items-start space-x-3">
+                                <div class="text-green-500 text-xl">✓</div>
+                                <div>
+                                    <div class="font-semibold text-gray-800">First Biological to Hardware Translation</div>
+                                    <div class="text-sm text-gray-600">KaiABC protein cycle → distributed timing system</div>
+                                </div>
+                            </div>
+                            <div class="flex items-start space-x-3">
+                                <div class="text-green-500 text-xl">✓</div>
+                                <div>
+                                    <div class="font-semibold text-gray-800">Ultra-Low Power Design</div>
+                                    <div class="text-sm text-gray-600">0.3mA vs 45mA GPS, 120mA NTP</div>
+                                </div>
+                            </div>
+                            <div class="flex items-start space-x-3">
+                                <div class="text-green-500 text-xl">✓</div>
+                                <div>
+                                    <div class="font-semibold text-gray-800">Distributed Architecture</div>
+                                    <div class="text-sm text-gray-600">No single point of failure, mesh network</div>
+                                </div>
+                            </div>
+                            <div class="flex items-start space-x-3">
+                                <div class="text-green-500 text-xl">✓</div>
+                                <div>
+                                    <div class="font-semibold text-gray-800">Mathematical Rigor</div>
+                                    <div class="text-sm text-gray-600">Kuramoto model with 5% error accuracy</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Biology View -->
+            <div id="biology-view" class="view-content">
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <h3 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
+                        <span class="text-2xl mr-2">🧬</span>
+                        Kai Protein Cycle Biology
+                    </h3>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Kai Cycle Diagram -->
+                        <div class="bg-gradient-to-br from-cyan-50 to-blue-50 p-6 rounded-lg border border-cyan-200">
+                            <h4 class="text-lg font-semibold text-cyan-800 mb-4">Kai Protein Oscillation Cycle</h4>
+                            <div class="text-center mb-4">
+                                <div class="text-4xl mb-2">🔄</div>
+                                <div class="text-sm text-cyan-700">24-hour circadian rhythm</div>
+                            </div>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between">
+                                    <span>KaiA:</span>
+                                    <span class="font-mono text-cyan-600">Phosphorylation activator</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>KaiB:</span>
+                                    <span class="font-mono text-cyan-600">Period modulator</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>KaiC:</span>
+                                    <span class="font-mono text-cyan-600">Autokinase/phosphatase</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Engineering Translation -->
+                        <div class="bg-gradient-to-br from-green-50 to-emerald-50 p-6 rounded-lg border border-green-200">
+                            <h4 class="text-lg font-semibold text-green-800 mb-4">Engineering Translation</h4>
+                            <div class="space-y-3">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center text-sm font-bold">1</div>
+                                    <div>
+                                        <div class="font-semibold text-green-800">Protein Interactions</div>
+                                        <div class="text-sm text-green-700">Molecular binding kinetics</div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center text-sm font-bold">2</div>
+                                    <div>
+                                        <div class="font-semibold text-green-800">Oscillation Dynamics</div>
+                                        <div class="text-sm text-green-700">Phase synchronization</div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center text-sm font-bold">3</div>
+                                    <div>
+                                        <div class="font-semibold text-green-800">Distributed Computing</div>
+                                        <div class="text-sm text-green-700">Mesh network timing</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Theory View -->
+            <div id="theory-view" class="view-content">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Formula Evolution Chart -->
+                    <div class="bg-white rounded-xl shadow-lg p-6">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                            <span class="text-2xl mr-2">📈</span>
+                            Formula Evolution
+                        </h3>
+                        <div class="chart-container">
+                            <canvas id="formulaChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- V8 vs V9.1 Comparison -->
+                    <div class="bg-white rounded-xl shadow-lg p-6">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                            <span class="text-2xl mr-2">⚡</span>
+                            V8 vs V9.1 Performance
+                        </h3>
+                        <div class="chart-container">
+                            <canvas id="regimeChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Regime Performance Cards -->
+                <div class="bg-white rounded-xl shadow-lg p-6 mt-6">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Regime Performance Analysis</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-lg border border-green-200">
+                            <div class="text-green-600 font-semibold mb-1">High Coupling (1.7-2.0)</div>
+                            <div class="text-2xl font-bold text-green-800">99.5%</div>
+                            <div class="text-sm text-green-700">Synchronization accuracy</div>
+                        </div>
+                        <div class="bg-gradient-to-br from-yellow-50 to-yellow-100 p-4 rounded-lg border border-yellow-200">
+                            <div class="text-yellow-600 font-semibold mb-1">Medium Coupling (1.1-1.3)</div>
+                            <div class="text-2xl font-bold text-yellow-800">32-59%</div>
+                            <div class="text-sm text-yellow-700">Partial synchronization</div>
+                        </div>
+                        <div class="bg-gradient-to-br from-red-50 to-red-100 p-4 rounded-lg border border-red-200">
+                            <div class="text-red-600 font-semibold mb-1">Low Coupling (0.8-1.0)</div>
+                            <div class="text-2xl font-bold text-red-800">0-26%</div>
+                            <div class="text-sm text-red-700">Poor synchronization</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hardware View -->
+            <div id="hardware-view" class="view-content">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Message Structure -->
+                    <div class="bg-white rounded-xl shadow-lg p-6">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                            <span class="text-2xl mr-2">📡</span>
+                            LoRa Message Structure
+                        </h3>
+                        <div class="bg-gray-50 p-4 rounded-lg font-mono text-sm">
+                            <div class="text-gray-600 mb-2">// 10-byte packet structure</div>
+                            <div class="text-blue-600">typedef struct {</div>
+                            <div class="text-blue-600 ml-4">uint8_t node_id;      // 1 byte</div>
+                            <div class="text-blue-600 ml-4">uint32_t timestamp;   // 4 bytes</div>
+                            <div class="text-blue-600 ml-4">uint16_t phase;       // 2 bytes</div>
+                            <div class="text-blue-600 ml-4">uint16_t coupling;    // 2 bytes</div>
+                            <div class="text-blue-600 ml-4">uint8_t checksum;     // 1 byte</div>
+                            <div class="text-blue-600">} fdrs_packet_t;</div>
+                        </div>
+                        <div class="mt-4 text-sm text-gray-600">
+                            Total: 10 bytes per transmission
+                        </div>
+                    </div>
+
+                    <!-- Hardware Specifications -->
+                    <div class="bg-white rounded-xl shadow-lg p-6">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                            <span class="text-2xl mr-2">🔧</span>
+                            Hardware Specifications
+                        </h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-lg border border-blue-200">
+                                <div class="text-blue-600 font-semibold mb-1">Microcontroller</div>
+                                <div class="text-sm text-blue-800">ESP32</div>
+                                <div class="text-xs text-blue-600 mt-1">240MHz dual core</div>
+                            </div>
+                            <div class="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-lg border border-green-200">
+                                <div class="text-green-600 font-semibold mb-1">Radio</div>
+                                <div class="text-sm text-green-800">SX1276 LoRa</div>
+                                <div class="text-xs text-green-600 mt-1">868/915MHz</div>
+                            </div>
+                            <div class="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-lg border border-purple-200">
+                                <div class="text-purple-600 font-semibold mb-1">Power</div>
+                                <div class="text-sm text-purple-800">3.3V LiPo</div>
+                                <div class="text-xs text-purple-600 mt-1">0.3mA average</div>
+                            </div>
+                            <div class="bg-gradient-to-br from-orange-50 to-orange-100 p-4 rounded-lg border border-orange-200">
+                                <div class="text-orange-600 font-semibold mb-1">Network</div>
+                                <div class="text-sm text-orange-800">FDRS Mesh</div>
+                                <div class="text-xs text-orange-600 mt-1">Self-organizing</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance View -->
+            <div id="performance-view" class="view-content">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- System Comparison Radar -->
+                    <div class="bg-white rounded-xl shadow-lg p-6">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                            <span class="text-2xl mr-2">🎯</span>
+                            System Comparison
+                        </h3>
+                        <div class="chart-container">
+                            <canvas id="radarChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Power Efficiency -->
+                    <div class="bg-white rounded-xl shadow-lg p-6">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                            <span class="text-2xl mr-2">🔋</span>
+                            Power Efficiency
+                        </h3>
+                        <div class="space-y-4">
+                            <div class="bg-gradient-to-r from-green-100 to-green-200 p-4 rounded-lg">
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="font-semibold text-green-800">KaiABC</span>
+                                    <span class="text-green-600 font-bold">0.3 mA</span>
+                                </div>
+                                <div class="w-full bg-green-200 rounded-full h-2">
+                                    <div class="bg-green-600 h-2 rounded-full" style="width: 95%"></div>
+                                </div>
+                            </div>
+                            <div class="bg-gradient-to-r from-red-100 to-red-200 p-4 rounded-lg">
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="font-semibold text-red-800">GPS</span>
+                                    <span class="text-red-600 font-bold">45 mA</span>
+                                </div>
+                                <div class="w-full bg-red-200 rounded-full h-2">
+                                    <div class="bg-red-600 h-2 rounded-full" style="width: 15%"></div>
+                                </div>
+                            </div>
+                            <div class="bg-gradient-to-r from-orange-100 to-orange-200 p-4 rounded-lg">
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="font-semibold text-orange-800">NTP</span>
+                                    <span class="text-orange-600 font-bold">120 mA</span>
+                                </div>
+                                <div class="w-full bg-orange-200 rounded-full h-2">
+                                    <div class="bg-orange-600 h-2 rounded-full" style="width: 8%"></div>
+                                </div>
+                            </div>
+                            <div class="bg-gradient-to-r from-blue-100 to-blue-200 p-4 rounded-lg">
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="font-semibold text-blue-800">RTC</span>
+                                    <span class="text-blue-600 font-bold">0.5 mA</span>
+                                </div>
+                                <div class="w-full bg-blue-200 rounded-full h-2">
+                                    <div class="bg-blue-600 h-2 rounded-full" style="width: 90%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Deployment Score -->
+                <div class="bg-white rounded-xl shadow-lg p-6 mt-6">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                        <span class="text-2xl mr-2">🚀</span>
+                        Deployment Readiness
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div class="text-center">
+                            <div class="text-3xl font-bold text-green-600 mb-1">95%</div>
+                            <div class="text-sm text-gray-600">KaiABC</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-3xl font-bold text-blue-600 mb-1">70%</div>
+                            <div class="text-sm text-gray-600">GPS</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-3xl font-bold text-purple-600 mb-1">40%</div>
+                            <div class="text-sm text-gray-600">NTP</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-3xl font-bold text-orange-600 mb-1">90%</div>
+                            <div class="text-sm text-gray-600">RTC</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Project Advantages -->
+                <div class="bg-white rounded-xl shadow-lg p-6 mt-6">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                        <span class="text-2xl mr-2">⭐</span>
+                        Key Advantages
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="space-y-3">
+                            <div class="flex items-start space-x-3">
+                                <div class="text-green-500 text-xl">✓</div>
+                                <div>
+                                    <div class="font-semibold text-gray-800">Ultra-Low Power Consumption</div>
+                                    <div class="text-sm text-gray-600">0.3mA vs 45mA GPS, 120mA NTP - 99% power reduction</div>
+                                </div>
+                            </div>
+                            <div class="flex items-start space-x-3">
+                                <div class="text-green-500 text-xl">✓</div>
+                                <div>
+                                    <div class="font-semibold text-gray-800">Distributed Architecture</div>
+                                    <div class="text-sm text-gray-600">No single point of failure, mesh network resilience</div>
+                                </div>
+                            </div>
+                            <div class="flex items-start space-x-3">
+                                <div class="text-green-500 text-xl">✓</div>
+                                <div>
+                                    <div class="font-semibold text-gray-800">High Accuracy</div>
+                                    <div class="text-sm text-gray-600">5% error with V9.1 formula, 85% system accuracy</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="space-y-3">
+                            <div class="flex items-start space-x-3">
+                                <div class="text-green-500 text-xl">✓</div>
+                                <div>
+                                    <div class="font-semibold text-gray-800">Cost Effective</div>
+                                    <div class="text-sm text-gray-600">$10 vs $25 GPS - 60% cost reduction</div>
+                                </div>
+                            </div>
+                            <div class="flex items-start space-x-3">
+                                <div class="text-green-500 text-xl">✓</div>
+                                <div>
+                                    <div class="font-semibold text-gray-800">Easy Deployment</div>
+                                    <div class="text-sm text-gray-600">95% deployment score, self-organizing network</div>
+                                </div>
+                            </div>
+                            <div class="flex items-start space-x-3">
+                                <div class="text-green-500 text-xl">✓</div>
+                                <div>
+                                    <div class="font-semibold text-gray-800">Biologically Inspired</div>
+                                    <div class="text-sm text-gray-600">First translation of cyanobacteria timing to hardware</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Project Status -->
+                <div class="bg-gradient-to-r from-green-600 to-emerald-600 rounded-xl shadow-lg p-6 mt-6 text-white">
+                    <h3 class="text-xl font-bold mb-4 flex items-center">
+                        <span class="text-2xl mr-2">🎉</span>
+                        Project Status
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="bg-white/10 backdrop-blur rounded-lg p-4">
+                            <div class="text-green-200 text-sm font-semibold mb-2">Biology → Hardware</div>
+                            <div class="text-2xl font-bold mb-1">✅ Complete</div>
+                            <div class="text-sm text-green-100">Kai protein cycle translated to ESP32</div>
+                        </div>
+                        <div class="bg-white/10 backdrop-blur rounded-lg p-4">
+                            <div class="text-green-200 text-sm font-semibold mb-2">Mathematical Model</div>
+                            <div class="text-2xl font-bold mb-1">✅ Complete</div>
+                            <div class="text-sm text-green-100">V9.1 formula with 5% error accuracy</div>
+                        </div>
+                        <div class="bg-white/10 backdrop-blur rounded-lg p-4">
+                            <div class="text-green-200 text-sm font-semibold mb-2">Hardware Implementation</div>
+                            <div class="text-2xl font-bold mb-1">✅ Complete</div>
+                            <div class="text-sm text-green-100">LoRa FDRS network operational</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data from the original React component
+        const formulaPerformance = [
+            { version: 'V1', error: 21.6, status: 'poor' },
+            { version: 'V2', error: 17.0, status: 'poor' },
+            { version: 'V3', error: 36.3, status: 'poor' },
+            { version: 'V4', error: 8.3, status: 'good' },
+            { version: 'V5', error: 17.0, status: 'poor' },
+            { version: 'V6', error: 8.8, status: 'good' },
+            { version: 'V7', error: 18.6, status: 'poor' },
+            { version: 'V8', error: 6.6, status: 'excellent' },
+            { version: 'V9.1', error: 5.0, status: 'champion' }
+        ];
+
+        const regimeData = [
+            { ratio: 0.8, empirical: 9.5, v8: 0, v91: 18.6 },
+            { ratio: 0.9, empirical: 19.0, v8: 0, v91: 22.2 },
+            { ratio: 1.0, empirical: 27.5, v8: 0, v91: 26.0 },
+            { ratio: 1.1, empirical: 37.0, v8: 32.7, v91: 32.7 },
+            { ratio: 1.2, empirical: 54.0, v8: 53.2, v91: 53.2 },
+            { ratio: 1.3, empirical: 55.0, v8: 59.0, v91: 59.0 },
+            { ratio: 1.5, empirical: 87.0, v8: 80.0, v91: 80.0 },
+            { ratio: 1.7, empirical: 94.0, v8: 99.5, v91: 99.5 },
+            { ratio: 2.0, empirical: 99.0, v8: 99.9, v91: 99.9 }
+        ];
+
+        const hardwareComparison = [
+            { system: 'GPS', power: 45, accuracy: 100, cost: 25, deployment: 70 },
+            { system: 'NTP', power: 120, accuracy: 95, cost: 15, deployment: 40 },
+            { system: 'RTC', power: 0.5, accuracy: 30, cost: 5, deployment: 90 },
+            { system: 'KaiABC', power: 0.3, accuracy: 85, cost: 10, deployment: 95 }
+        ];
+
+        // State management
+        let selectedView = 'overview';
+
+        // Tab switching functionality
+        function switchView(viewName) {
+            // Update state
+            selectedView = viewName;
+
+            // Update tab buttons
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                if (btn.dataset.view === viewName) {
+                    btn.classList.remove('tab-inactive');
+                    btn.classList.add('tab-active');
+                } else {
+                    btn.classList.remove('tab-active');
+                    btn.classList.add('tab-inactive');
+                }
+            });
+
+            // Update view content
+            document.querySelectorAll('.view-content').forEach(view => {
+                if (view.id === viewName + '-view') {
+                    view.classList.add('active');
+                } else {
+                    view.classList.remove('active');
+                }
+            });
+
+            // Initialize charts when switching to theory or performance views
+            if (viewName === 'theory') {
+                setTimeout(() => {
+                    initFormulaChart();
+                    initRegimeChart();
+                }, 100);
+            } else if (viewName === 'performance') {
+                setTimeout(() => {
+                    initRadarChart();
+                }, 100);
+            }
+        }
+
+        // Chart initialization functions
+        function initFormulaChart() {
+            const ctx = document.getElementById('formulaChart');
+            if (!ctx) return;
+
+            const getStatusColor = (status) => {
+                switch(status) {
+                    case 'champion': return '#10b981';
+                    case 'excellent': return '#3b82f6';
+                    case 'good': return '#8b5cf6';
+                    case 'poor': return '#ef4444';
+                    default: return '#6b7280';
+                }
+            };
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: formulaPerformance.map(item => item.version),
+                    datasets: [{
+                        label: 'Error %',
+                        data: formulaPerformance.map(item => item.error),
+                        backgroundColor: formulaPerformance.map(item => getStatusColor(item.status)),
+                        borderColor: formulaPerformance.map(item => getStatusColor(item.status)),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Error Percentage (%)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Formula Version'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Error: ${context.parsed.y}% (${formulaPerformance[context.dataIndex].status})`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function initRegimeChart() {
+            const ctx = document.getElementById('regimeChart');
+            if (!ctx) return;
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: regimeData.map(item => item.ratio.toString()),
+                    datasets: [
+                        {
+                            label: 'Empirical',
+                            data: regimeData.map(item => item.empirical),
+                            borderColor: '#ef4444',
+                            backgroundColor: '#ef4444',
+                            tension: 0.1
+                        },
+                        {
+                            label: 'V8',
+                            data: regimeData.map(item => item.v8),
+                            borderColor: '#3b82f6',
+                            backgroundColor: '#3b82f6',
+                            tension: 0.1
+                        },
+                        {
+                            label: 'V9.1',
+                            data: regimeData.map(item => item.v91),
+                            borderColor: '#10b981',
+                            backgroundColor: '#10b981',
+                            tension: 0.1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Synchronization (%)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Coupling Ratio'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function initRadarChart() {
+            const ctx = document.getElementById('radarChart');
+            if (!ctx) return;
+
+            new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['Power Efficiency', 'Accuracy', 'Cost', 'Deployment'],
+                    datasets: hardwareComparison.map(item => ({
+                        label: item.system,
+                        data: [item.power, item.accuracy, item.cost, item.deployment],
+                        borderColor: item.system === 'KaiABC' ? '#10b981' : '#6b7280',
+                        backgroundColor: item.system === 'KaiABC' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(107, 114, 128, 0.2)',
+                        borderWidth: item.system === 'KaiABC' ? 3 : 1
+                    }))
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value, index, values) {
+                                    // Custom labels for different metrics
+                                    const labels = ['Power (mA)', 'Accuracy (%)', 'Cost ($)', 'Deployment (%)'];
+                                    return labels[index] + ': ' + value;
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const metric = context.datasetIndex;
+                                    const value = context.parsed.r;
+                                    const labels = ['Power: ', 'Accuracy: ', 'Cost: $', 'Deployment: '];
+                                    return context.dataset.label + ' - ' + labels[metric] + value + (metric === 2 ? '' : (metric === 0 ? 'mA' : '%'));
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add click listeners to tab buttons
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.addEventListener('click', function() {
+                    switchView(this.dataset.view);
+                });
+            });
+
+            // Initialize charts for default view
+            initFormulaChart();
+            initRegimeChart();
+            initRadarChart();
+        });
+    </script>
+</body>
+</html>
