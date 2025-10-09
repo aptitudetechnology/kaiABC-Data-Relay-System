@@ -5,8 +5,9 @@ Focus: Test the CRITICAL REGIME where theory predictions matter most
 
 Features:
 - Parallel Monte Carlo trials (uses all CPU cores - 1)
-- 3 formula variants for comparison
+- 4 formula variants for comparison (V1, V2, V3, V4)
 - Critical regime focus (K ≈ K_c transition region)
+- Formula V4 (finite-size correction) is now DEFAULT
 
 Runtime: ~2 minutes with 8 cores, ~15 minutes sequential
 """
@@ -37,14 +38,14 @@ class SimulationConfig:
 def calculate_sigma_omega(Q10, sigma_T, tau_ref):
     return (2*np.pi / tau_ref) * (abs(np.log(Q10)) / 10) * sigma_T
 
-def predict_basin_volume(N, sigma_omega, omega_mean, K, alpha=1.5, formula_version=2):
+def predict_basin_volume(N, sigma_omega, omega_mean, K, alpha=1.5, formula_version=4):
     """
     Basin volume with multiple formula options
     
     Version 1 (original): V = 1 - (K_c/K)^(2N)  [TOO OPTIMISTIC]
     Version 2 (softer):   V = 1 - (K_c/K)^N     [GENTLER TRANSITION]
     Version 3 (tanh):     V = tanh((K-K_c)/(K_c*β))^N  [SMOOTH S-CURVE]
-    Version 4 (finite-size): Accounts for finite N with smooth transition [NEW]
+    Version 4 (finite-size): Accounts for finite N with smooth transition [NEW - DEFAULT]
     """
     K_c = 2 * sigma_omega
     K_ratio = K / K_c
