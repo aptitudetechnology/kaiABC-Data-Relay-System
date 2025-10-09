@@ -43,27 +43,58 @@ def predict_basin_volume(N, sigma_omega, omega_mean, K, alpha=1.5, formula_versi
     Version 1 (original): V = 1 - (K_c/K)^(2N)  [TOO OPTIMISTIC]
     Version 2 (softer):   V = 1 - (K_c/K)^N     [GENTLER TRANSITION]
     Version 3 (tanh):     V = tanh((K-K_c)/(K_c*β))^N  [SMOOTH S-CURVE]
+    Version 4 (finite-size): Accounts for finite N with smooth transition [NEW]
     """
     K_c = 2 * sigma_omega
-    
-    if K <= K_c:
-        return 0.0
+    K_ratio = K / K_c
     
     if formula_version == 1:
         # Original: Too aggressive near K_c
+        if K <= K_c:
+            return 0.0
         basin_volume = 1.0 - (K_c / K) ** (2 * N)
     
     elif formula_version == 2:
         # Softer: Exponent = N instead of 2N
+        if K <= K_c:
+            return 0.0
         basin_volume = 1.0 - (K_c / K) ** N
     
     elif formula_version == 3:
         # Smooth tanh transition with tunable width
+        if K <= K_c:
+            return 0.0
         beta = 0.5  # Transition width parameter
         margin = (K - K_c) / (K_c * beta)
         basin_volume = np.tanh(margin) ** N
     
-    return min(basin_volume, 1.0)
+    elif formula_version == 4:
+        # Finite-size correction: smooth transition accounting for small N
+        # Key insight: Below K_c, finite networks still have small nonzero basin
+        # At K_c, probabilistic synchronization occurs
+        # Above K_c, basin grows but slower than V1 predicts
+        
+        if K_ratio < 0.9:
+            # Deep below critical: ~10% chance from lucky initial conditions
+            basin_volume = 0.1 * K_ratio
+        
+        elif K_ratio < 1.5:
+            # Transition regime: smooth interpolation with finite-size correction
+            # Alpha decreases from 2 toward 1 for small N
+            alpha_eff = 1.5 - 0.5 * np.exp(-N / 10.0)  # α → 2 as N → ∞
+            
+            # Use sqrt(N) instead of N for gentler growth
+            exponent = alpha_eff * np.sqrt(N)
+            basin_volume = 1.0 - (1.0 / K_ratio) ** exponent
+        
+        else:
+            # Strong coupling: saturates quickly with N exponent
+            basin_volume = 1.0 - (1.0 / K_ratio) ** N
+    
+    else:
+        raise ValueError(f"Unknown formula_version: {formula_version}")
+    
+    return min(max(basin_volume, 0.0), 1.0)
 
 def calculate_order_parameter(phases):
     complex_avg = np.mean(np.exp(1j * phases))
@@ -459,18 +490,22 @@ def compare_formulas():
     print("\n" + "="*70)
     print("FORMULA COMPARISON TEST")
     print("="*70)
-    print("\nTesting 3 different basin volume formulas:")
+    print("\nTesting 4 different basin volume formulas:")
     print("  V1: 1 - (K_c/K)^(2N)  [Original - too optimistic]")
     print("  V2: 1 - (K_c/K)^N     [Softer exponent]")
-    print("  V3: tanh((K-K_c)/(K_c*β))^N  [Smooth S-curve]\n")
+    print("  V3: tanh((K-K_c)/(K_c*β))^N  [Smooth S-curve]")
+    print("  V4: Finite-size correction  [NEW - accounts for small N]\n")
     
     base_config = SimulationConfig(N=10, Q10=1.1, sigma_T=5.0, tau_ref=24.0, t_max=30*24, dt=0.1)
     sigma_omega = calculate_sigma_omega(base_config.Q10, base_config.sigma_T, base_config.tau_ref)
     K_c = 2 * sigma_omega
     omega_mean = 2*np.pi / base_config.tau_ref
     
-    # Focus on transition regime
-    K_ratios = [1.0, 1.1, 1.2, 1.3, 1.5, 1.7, 2.0]
+    # Extended range including below critical and transition
+    K_ratios = [0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.5, 1.7, 2.0, 2.5]
+    
+    print(f"Running Monte Carlo trials (50 per K value)...")
+    print(f"K_c = {K_c:.4f} rad/hr\n")
     
     # Run simulations once and compare all formulas
     empirical_data = []
@@ -489,12 +524,17 @@ def compare_formulas():
             'K': config.K,
             'V_empirical': converged / trials
         })
+        
+        print(f"  K/K_c = {K_ratio:.1f}: {converged}/{trials} converged ({converged/trials:.1%})")
     
     # Evaluate each formula
-    print(f"{'K/K_c':<8} {'Empirical':<12} {'V1 (2N)':<12} {'V2 (N)':<12} {'V3 (tanh)':<12}")
+    print("\n" + "="*70)
+    print("FORMULA PREDICTIONS vs EMPIRICAL")
+    print("="*70)
+    print(f"{'K/K_c':<8} {'Empirical':<12} {'V1 (2N)':<10} {'V2 (N)':<10} {'V3 (tanh)':<10} {'V4 (finite)':<10}")
     print("-" * 70)
     
-    errors = {1: [], 2: [], 3: []}
+    errors = {1: [], 2: [], 3: [], 4: []}
     
     for data in empirical_data:
         K_ratio = data['K_ratio']
@@ -504,35 +544,73 @@ def compare_formulas():
         V1 = predict_basin_volume(base_config.N, sigma_omega, omega_mean, K, formula_version=1)
         V2 = predict_basin_volume(base_config.N, sigma_omega, omega_mean, K, formula_version=2)
         V3 = predict_basin_volume(base_config.N, sigma_omega, omega_mean, K, formula_version=3)
+        V4 = predict_basin_volume(base_config.N, sigma_omega, omega_mean, K, formula_version=4)
         
-        print(f"{K_ratio:<8.1f} {V_emp:<12.1%} {V1:<12.1%} {V2:<12.1%} {V3:<12.1%}")
+        print(f"{K_ratio:<8.1f} {V_emp:<12.1%} {V1:<10.1%} {V2:<10.1%} {V3:<10.1%} {V4:<10.1%}")
         
-        # Calculate errors for K > K_c
-        if K > K_c and V_emp > 0.1:
-            errors[1].append(abs(V1 - V_emp) / V_emp)
-            errors[2].append(abs(V2 - V_emp) / V_emp)
-            errors[3].append(abs(V3 - V_emp) / V_emp)
+        # Calculate errors across all K values (including below critical)
+        if V_emp > 0.05:  # Only calculate if empirical is meaningful
+            errors[1].append(abs(V1 - V_emp))
+            errors[2].append(abs(V2 - V_emp))
+            errors[3].append(abs(V3 - V_emp))
+            errors[4].append(abs(V4 - V_emp))
     
-    # Summary
+    # Summary - Overall performance
     print("\n" + "="*70)
-    print("MEAN ABSOLUTE ERROR (transition regime K/K_c ∈ [1.1, 1.5]):")
+    print("MEAN ABSOLUTE ERROR (all K values):")
     print("-" * 70)
     
-    for version in [1, 2, 3]:
-        mean_error = np.mean(errors[version])
-        print(f"Formula V{version}: {mean_error:.1%}", end="")
-        
-        if mean_error < 0.20:
-            print(f"  ✅ Excellent")
-        elif mean_error < 0.30:
-            print(f"  ✅ Good")
-        elif mean_error < 0.40:
-            print(f"  ⚠️ Acceptable")
-        else:
-            print(f"  ❌ Poor")
+    for version in [1, 2, 3, 4]:
+        if errors[version]:
+            mean_error = np.mean(errors[version])
+            print(f"Formula V{version}: {mean_error:.1%}", end="")
+            
+            if mean_error < 0.15:
+                print(f"  ✅ Excellent")
+            elif mean_error < 0.25:
+                print(f"  ✅ Good")
+            elif mean_error < 0.35:
+                print(f"  ⚠️ Acceptable")
+            else:
+                print(f"  ❌ Poor")
+    
+    # Transition regime specific
+    print("\n" + "="*70)
+    print("TRANSITION REGIME ERROR (K/K_c ∈ [1.0, 1.5]):")
+    print("-" * 70)
+    
+    transition_errors = {1: [], 2: [], 3: [], 4: []}
+    for data in empirical_data:
+        if 1.0 <= data['K_ratio'] <= 1.5:
+            K = data['K']
+            V_emp = data['V_empirical']
+            
+            V1 = predict_basin_volume(base_config.N, sigma_omega, omega_mean, K, formula_version=1)
+            V2 = predict_basin_volume(base_config.N, sigma_omega, omega_mean, K, formula_version=2)
+            V3 = predict_basin_volume(base_config.N, sigma_omega, omega_mean, K, formula_version=3)
+            V4 = predict_basin_volume(base_config.N, sigma_omega, omega_mean, K, formula_version=4)
+            
+            transition_errors[1].append(abs(V1 - V_emp))
+            transition_errors[2].append(abs(V2 - V_emp))
+            transition_errors[3].append(abs(V3 - V_emp))
+            transition_errors[4].append(abs(V4 - V_emp))
+    
+    for version in [1, 2, 3, 4]:
+        if transition_errors[version]:
+            trans_error = np.mean(transition_errors[version])
+            print(f"Formula V{version}: {trans_error:.1%}", end="")
+            
+            if trans_error < 0.15:
+                print(f"  ✅ Excellent - hardware ready!")
+            elif trans_error < 0.25:
+                print(f"  ✅ Good - safe for hardware")
+            elif trans_error < 0.35:
+                print(f"  ⚠️ Acceptable - use K=2.0×K_c for safety")
+            else:
+                print(f"  ❌ Poor - needs refinement")
     
     # Recommend best formula
-    best_version = min(errors.keys(), key=lambda v: np.mean(errors[v]))
+    best_version = min(transition_errors.keys(), key=lambda v: np.mean(transition_errors[v]))
     print(f"\n🏆 BEST FORMULA: V{best_version} (mean error {np.mean(errors[best_version]):.1%})")
     
     if np.mean(errors[best_version]) < 0.25:
@@ -544,10 +622,43 @@ def compare_formulas():
         print(f"   → Consider empirical calibration")
         print(f"   → Or test with more formula variations")
 
+def test_hardware_regime():
+    """
+    PLACEHOLDER: Focused test on K/K_c ∈ [1.1, 1.5] where hardware will operate
+    
+    This function will:
+    1. Test only the critical transition region (K ≈ K_c)
+    2. Use higher trial count (100) for better statistics
+    3. Test multiple N values (3, 5, 10) for hardware sizing
+    4. Provide specific hardware recommendations
+    
+    Usage: python3 enhanced_test_basin_volume.py --hardware
+    """
+    print("\n" + "="*70)
+    print("HARDWARE REGIME TEST (PLACEHOLDER)")
+    print("="*70)
+    print("\n⚠️ This function is a placeholder for future implementation.")
+    print("\nWhen implemented, it will:")
+    print("  • Focus on K/K_c ∈ [1.1, 1.5] (realistic hardware coupling)")
+    print("  • Test N ∈ [3, 5, 10] (hardware budget: 3-10 nodes)")
+    print("  • Run 100 trials per configuration (high confidence)")
+    print("  • Use best formula from --compare results")
+    print("  • Output specific recommendations:")
+    print("    - Minimum K for >90% sync probability")
+    print("    - Expected sync time")
+    print("    - Hardware cost estimate")
+    print("    - GO/NO-GO decision for $104 purchase")
+    print("\n📋 To implement: Copy compare_formulas() and modify for")
+    print("   high-resolution testing in transition regime only.")
+    print("\nFor now, run: python3 enhanced_test_basin_volume.py --compare")
+    print("="*70)
+
 if __name__ == "__main__":
     import sys
     
     if len(sys.argv) > 1 and sys.argv[1] == "--compare":
         compare_formulas()
+    elif len(sys.argv) > 1 and sys.argv[1] == "--hardware":
+        test_hardware_regime()
     else:
         run_enhanced_mvp()
