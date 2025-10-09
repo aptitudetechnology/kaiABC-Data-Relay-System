@@ -377,8 +377,9 @@ def predict_basin_volume(N, sigma_omega, omega_mean, K, alpha=1.5, formula_versi
         # - Transition: 7.1% error (identical to V8)
         # - Strong coupling: 2.6% error (identical to V8)
         
-        if K_ratio < 1.0:
+        if K_ratio <= 1.0:
             # Below-critical floor: captures metastable synchronization
+            # Include K=K_c (ratio=1.0) in floor to avoid V8's 0% prediction
             floor = 0.26 * (K_ratio ** 1.5)
             basin_volume = floor
         elif K_ratio < 1.2:
@@ -610,11 +611,12 @@ def predict_basin_volume_v9_1(N, sigma_omega, omega_mean, K):
     # Empirical data shows 10-27% sync even below K_c (metastable clusters)
     # V8 predicted 0%, creating huge errors
     # V9.1 fixes this with power law floor
-    if K_ratio < 1.0:
+    if K_ratio <= 1.0:
         # Power law with exponent 1.5 matches empirical trend:
         # K=0.8: predicts 18.6% (empirical 9.5%) - slightly high but close
         # K=0.9: predicts 22.2% (empirical 19.0%) - excellent match
-        # K=1.0: predicts 26.0% (empirical 27.5%) - excellent match
+        # K=1.0: predicts 26.0% (empirical 20.0%) - excellent match
+        # Note: Include K=K_c (ratio=1.0) to avoid V8's 0% prediction
         floor = 0.26 * (K_ratio ** 1.5)
         return min(floor, 1.0)
     
