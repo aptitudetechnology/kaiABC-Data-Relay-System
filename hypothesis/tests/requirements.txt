@@ -1,0 +1,14 @@
+# KaiABC Hypothesis Testing - Python Dependencies
+# Install with: pip install -r requirements.txt
+
+# Core scientific computing
+numpy>=1.21.0
+
+# Plotting and visualization (optional, for extended analysis)
+matplotlib>=3.5.0
+
+# Data analysis (for future hypothesis tests)
+scipy>=1.7.0
+
+# Optional: Progress bars for long simulations
+tqdm>=4.65.0
