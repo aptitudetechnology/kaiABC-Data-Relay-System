@@ -27,6 +27,7 @@ Validated with 200 trials × 10 K values = 2000 simulations
 
 PRODUCTION READY: V9.1 is hardware deployment ready (24% better than V8)
 IMPORTANT: Use ≥200 trials near K_c for reliable statistics (50 trials too noisy!)
+NETWORK SIZE: Validated at N=10. Scaling to other N may require calibration.
 FUTURE WORK: V10 for <3% error (ML), V11 for 3-4% error (ultimate physics-based)
 
 Runtime: ~8 minutes with 8 cores, ~60 minutes sequential
