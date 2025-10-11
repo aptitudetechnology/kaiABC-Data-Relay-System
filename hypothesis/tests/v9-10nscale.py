@@ -38,13 +38,13 @@ except ImportError:
     SCIPY_AVAILABLE = False
 
 # Worker functions for multiprocessing (must be at module level)
-def _single_basin_trial(N: int, K: float):
+def _single_basin_trial(N: int, K: float, _=None):
     """Worker function for basin volume computation."""
     _, synchronized = simulate_kuramoto(N, K)
     return 1 if synchronized else 0
 
 
-def _single_correlation_trial(N: int, K: float):
+def _single_correlation_trial(N: int, K: float, _=None):
     """Worker function for correlation length measurement."""
     theta, _ = simulate_kuramoto(N, K, t_max=50.0)
 
@@ -84,14 +84,14 @@ def _single_correlation_trial(N: int, K: float):
     return xi
 
 
-def _single_r_trial(N: int, K: float):
+def _single_r_trial(N: int, K: float, _=None):
     """Worker function for order parameter fluctuations."""
     theta, _ = simulate_kuramoto(N, K, t_max=50.0)
     r = np.abs(np.mean(np.exp(1j * theta)))
     return r
 
 
-def _single_eigenvalue_trial(N: int, K: float):
+def _single_eigenvalue_trial(N: int, K: float, _=None):
     """Worker function for eigenvalue spectrum analysis."""
     # Generate random coupling matrix (simplified)
     # In full implementation, this would be the actual Kuramoto coupling matrix
@@ -121,7 +121,7 @@ def _single_eigenvalue_trial(N: int, K: float):
     return abs(gap)
 
 
-def _single_dimension_trial(N: int, K: float):
+def _single_dimension_trial(N: int, K: float, _=None):
     """Worker function for fractal dimension estimation."""
     # Placeholder: random walk around boundary
     # Real implementation would track trajectories near boundary
