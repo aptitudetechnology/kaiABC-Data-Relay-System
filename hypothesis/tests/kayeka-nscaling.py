@@ -431,15 +431,13 @@ def _compute_biological_basin_volume(K: float, freq_dispersion: float, trials: i
 
 def _compute_basin_volume_with_uncertainty(N: int, K: float, trials: int) -> Dict[str, float]:
     """Compute basin volume with uncertainty quantification using bootstrap"""
-    # Generate multiple volume estimates for uncertainty quantification
-    bootstrap_samples = max(5, trials // 200)  # At least 5 bootstrap samples
+    # Generate multiple volume estimates for uncertainty
     volumes = []
+    bootstrap_samples = max(5, trials // 100)  # Reasonable number of bootstrap samples
 
     for _ in range(bootstrap_samples):
-        # Use smaller trial count per bootstrap sample to keep total computation reasonable
-        sample_trials = max(50, trials // bootstrap_samples)
-        volume = _compute_basin_volume(N, K, sample_trials)
-        volumes.append(volume)
+        vol = _compute_basin_volume(N, K, trials // bootstrap_samples)
+        volumes.append(vol)
 
     volumes = np.array(volumes)
     mean_vol = np.mean(volumes)
@@ -449,8 +447,7 @@ def _compute_basin_volume_with_uncertainty(N: int, K: float, trials: int) -> Dic
         'mean': mean_vol,
         'std': std_vol,
         'ci_95': [mean_vol - 1.96*std_vol, mean_vol + 1.96*std_vol],
-        'bootstrap_samples': len(volumes),
-        'relative_uncertainty': std_vol / mean_vol if mean_vol > 0 else 1.0
+        'bootstrap_samples': len(volumes)
     }
 
 
