@@ -62,6 +62,8 @@ Our computational investigation revealed statistically significant directional p
 **Statistical Significance:** p < 0.001 across all coupling strengths tested
 **Consistency:** Directional preferences maintained across K = 0.8K_c to 1.2K_c
 
+The directional corridor detection algorithm identified clear directional preferences, with trajectories concentrating in specific angular sectors of phase space rather than distributing uniformly.
+
 ### 3.2 Coupling Strength Dependence
 
 The directional corridor structure exhibits systematic variation with coupling strength:
@@ -70,14 +72,16 @@ The directional corridor structure exhibits systematic variation with coupling s
 - **Critical Coupling (K = K_c):** Peak directional alignment, corridor strength = 0.82
 - **Strong Coupling (K = 1.2K_c):** Narrowed corridors, strength = 0.71
 
-This suggests that directional corridors become most pronounced near the synchronization transition.
+This suggests that directional corridors become most pronounced near the synchronization transition, where the basin boundary structure is most complex.
 
 ### 3.3 Phase Space Geometry
 
 Analysis of the directional distribution reveals:
 - **Preferred Sectors:** Trajectories concentrate in 3-4 primary directional sectors
 - **Sector Width:** Approximately 60-90 degrees each
-- **Symmetry Breaking:** Directional preferences break rotational symmetry of the phase space
+- **Symmetry Breaking:** Directional preferences break the rotational symmetry expected in isotropic phase space
+
+The observed sectoring suggests that basin boundaries contain "corridors" or "channels" that guide trajectories toward the boundary along preferred directions, analogous to the directional constraints in Kakeya sets.
 
 ### 3.4 Robustness Analysis
 
@@ -85,6 +89,19 @@ The directional corridor phenomenon proves robust under:
 - **System Size Variation:** Consistent patterns for N = 20-100 oscillators
 - **Numerical Precision:** Maintained across different integration time steps
 - **Initial Condition Sampling:** Independent of boundary sampling strategy
+
+### 3.5 Comparative Analysis with Other Open Questions
+
+As part of our comprehensive investigation of the Kakeya-Kuramoto framework, we tested four related research questions:
+
+| Research Question | Computational Evidence | Status |
+|------------------|----------------------|---------|
+| Directional Corridors | Strong directional bias (0.78) | ✅ SUPPORTS |
+| Fractal Dimension Bounds | Inconclusive scaling patterns | ❌ INCONCLUSIVE |
+| Scaling Laws Validation | Mixed support for √N scaling | ⚠️ MIXED |
+| Biological Implications | Weak predictive power | ❌ WEAK |
+
+The directional corridors result stands out as the strongest empirical support for the geometric framework, while other aspects require further investigation.
 
 ## 4. Discussion
 
