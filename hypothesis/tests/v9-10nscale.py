@@ -117,13 +117,15 @@ def compute_basin_volume(N: int, K: float, trials: int = 1000) -> float:
     Returns:
         volume: Fraction of initial conditions leading to synchronization
     """
-    sync_count = 0
-
-    for _ in range(trials):
+    # Use multiprocessing for parallel trials
+    def single_trial(_):
         _, synchronized = simulate_kuramoto(N, K)
-        if synchronized:
-            sync_count += 1
+        return 1 if synchronized else 0
 
+    with mp.Pool(processes=min(mp.cpu_count(), 8)) as pool:
+        results = pool.map(single_trial, range(trials))
+
+    sync_count = sum(results)
     return sync_count / trials
 
 
@@ -139,9 +141,7 @@ def measure_correlation_length(N: int, K: float, trials: int = 100) -> float:
     Returns:
         xi: Correlation length
     """
-    correlations = []
-
-    for _ in range(trials):
+    def single_correlation_trial(_):
         theta, _ = simulate_kuramoto(N, K, t_max=50.0)
 
         # Compute spatial correlation function
@@ -177,7 +177,10 @@ def measure_correlation_length(N: int, K: float, trials: int = 100) -> float:
         else:
             xi = 2.0
 
-        correlations.append(xi)
+        return xi
+
+    with mp.Pool(processes=min(mp.cpu_count(), 8)) as pool:
+        correlations = pool.map(single_correlation_trial, range(trials))
 
     return np.mean(correlations)
 
@@ -194,12 +197,13 @@ def measure_order_parameter_fluctuations(N: int, K: float, trials: int = 100) ->
     Returns:
         sigma_r: Standard deviation of order parameter
     """
-    r_values = []
-
-    for _ in range(trials):
+    def single_r_trial(_):
         theta, _ = simulate_kuramoto(N, K, t_max=50.0)
         r = np.abs(np.mean(np.exp(1j * theta)))
-        r_values.append(r)
+        return r
+
+    with mp.Pool(processes=min(mp.cpu_count(), 8)) as pool:
+        r_values = pool.map(single_r_trial, range(trials))
 
     return np.std(r_values)
 
@@ -216,9 +220,7 @@ def analyze_eigenvalue_spectrum(N: int, K: float, trials: int = 50) -> float:
     Returns:
         avg_gap: Average eigenvalue spacing near zero
     """
-    gaps = []
-
-    for _ in range(trials):
+    def single_eigenvalue_trial(_):
         # Generate random coupling matrix (simplified)
         # In full implementation, this would be the actual Kuramoto coupling matrix
         # For now, use random matrix approximation
@@ -244,7 +246,10 @@ def analyze_eigenvalue_spectrum(N: int, K: float, trials: int = 50) -> float:
         else:
             gap = 1.0
 
-        gaps.append(abs(gap))
+        return abs(gap)
+
+    with mp.Pool(processes=min(mp.cpu_count(), 8)) as pool:
+        gaps = pool.map(single_eigenvalue_trial, range(trials))
 
     return np.mean(gaps)
 
@@ -261,15 +266,14 @@ def estimate_fractal_dimension(N: int, K: float, trials: int = 100) -> float:
     Returns:
         dimension: Estimated fractal dimension
     """
-    # Simplified box counting for phase space
-    # In practice, this would require sampling basin boundaries
-    dimensions = []
-
-    for _ in range(trials):
+    def single_dimension_trial(_):
         # Placeholder: random walk around boundary
         # Real implementation would track trajectories near boundary
         base_dim = 0.5 + 0.3 * np.log(N) / np.log(100) + np.random.normal(0, 0.05)
-        dimensions.append(base_dim)
+        return base_dim
+
+    with mp.Pool(processes=min(mp.cpu_count(), 8)) as pool:
+        dimensions = pool.map(single_dimension_trial, range(trials))
 
     return np.mean(dimensions)
 
@@ -768,7 +772,9 @@ def run_theory_tests(N_range: List[int] = None, trials_per_N: int = 100, full_te
     print("=" * 60)
     print(f"Testing N values: {N_range}")
     print(f"Trials per N: {trials_per_N}")
-    print(f"Estimated runtime: {len(N_range) * 6 * 5 * trials_per_N / 100:.1f} seconds")
+    print(f"Using multiprocessing: {min(mp.cpu_count(), 8)} cores")
+    estimated_time = len(N_range) * 6 * trials_per_N / (100 * min(mp.cpu_count(), 8))
+    print(f"Estimated runtime: {estimated_time:.1f} seconds")
     print()
 
     # Run all theory tests
@@ -860,5 +866,6 @@ if __name__ == "__main__":
     print("\n" + "="*60)
     print("ANALYSIS COMPLETE")
     print("="*60)
+    print(f"Used multiprocessing with {min(mp.cpu_count(), 8)} CPU cores")
     print("Check theory_comparison.png for visualizations")
     print("The data will tell you which theory (if any) explains √N scaling!")
