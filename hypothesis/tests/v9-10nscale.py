@@ -13,7 +13,21 @@ This script tests multiple c        # Check for synchronization (order parameter
     synchronized = r > 0.3 theories to explain why √N scaling
 works empirically in Kuramoto oscillator basin volumes.
 
-Based on v9-1nscale.md research plan.
+Based on v9def test_sphere_packing(N_values: List[int], trials_per_N: int = 100) -> Dict[str, Any]:
+    """Test Sphere Packing/Geometric Constraints."""
+    print("Testing Sphere Packing Theory...")
+
+    # Use K in transition regime
+    base_K_c = 0.0250  # For N=10
+    
+    # For sphere packing, we need to measure basin volumes
+    volume_values = []
+    for N in N_values:
+        K_c_N = base_K_c * (10.0 / N)
+        K = 1.2 * K_c_N  # Transition regime
+        vol = compute_basin_volume(N, K, trials=trials_per_N)
+        volume_values.append(vol)
+        print(f"  N={N}: V = {vol:.3f} (K={K:.4f}, K_c={K_c_N:.4f})")d research plan.
 """
 
 import numpy as np
@@ -189,14 +203,14 @@ def simulate_kuramoto(N: int, K: float, t_max: float = 500.0, dt: float = 0.01,
     for _ in range(steps):
         theta = runge_kutta_step(theta, omega, K, dt)
 
-        # Check for synchronization (order parameter > 0.5)
+        # Check for synchronization (order parameter > 0.3)
         r = np.abs(np.mean(np.exp(1j * theta)))
-        if r > 0.5:
+        if r > 0.3:
             return theta, True
 
     # Final synchronization check
     r = np.abs(np.mean(np.exp(1j * theta)))
-    synchronized = r > 0.5
+    synchronized = r > 0.3
 
     return theta, synchronized
 
@@ -423,11 +437,17 @@ def test_finite_size_scaling(N_values: List[int], trials_per_N: int = 100) -> Di
     """Test Finite-Size Scaling theory."""
     print("Testing Finite-Size Scaling Theory...")
 
+    # Use K in transition regime: K ≈ 1.2 * K_c(N)
+    # K_c scales as 1/N, so K_c(N) = K_c(10) * (10/N)
+    base_K_c = 0.0250  # For N=10
+    
     xi_values = []
     for N in N_values:
-        xi = measure_correlation_length(N, K=3.0, trials=trials_per_N)
+        K_c_N = base_K_c * (10.0 / N)
+        K = 1.2 * K_c_N  # Transition regime
+        xi = measure_correlation_length(N, K, trials=trials_per_N)
         xi_values.append(xi)
-        print(f"  N={N}: ξ = {xi:.2f}")
+        print(f"  N={N}: ξ = {xi:.2f} (K={K:.4f}, K_c={K_c_N:.4f})")
 
     # Fit ξ ~ N^ν
     fit_result = fit_power_law(np.array(N_values), np.array(xi_values))
@@ -462,11 +482,16 @@ def test_central_limit_theorem(N_values: List[int], trials_per_N: int = 100) -> 
     """Test Central Limit Theorem."""
     print("Testing Central Limit Theorem...")
 
+    # Use K in transition regime
+    base_K_c = 0.0250  # For N=10
+    
     sigma_r_values = []
     for N in N_values:
-        sigma_r = measure_order_parameter_fluctuations(N, K=3.0, trials=trials_per_N)
+        K_c_N = base_K_c * (10.0 / N)
+        K = 1.2 * K_c_N  # Transition regime
+        sigma_r = measure_order_parameter_fluctuations(N, K, trials=trials_per_N)
         sigma_r_values.append(sigma_r)
-        print(f"  N={N}: σ_r = {sigma_r:.4f}")
+        print(f"  N={N}: σ_r = {sigma_r:.4f} (K={K:.4f}, K_c={K_c_N:.4f})")
 
     # Fit σ_r ~ N^ν
     fit_result = fit_power_law(np.array(N_values), np.array(sigma_r_values))
@@ -500,11 +525,16 @@ def test_random_matrix_theory(N_values: List[int], trials_per_N: int = 50) -> Di
     """Test Random Matrix Theory."""
     print("Testing Random Matrix Theory...")
 
+    # Use K in transition regime
+    base_K_c = 0.0250  # For N=10
+    
     gap_values = []
     for N in N_values:
-        gap = analyze_eigenvalue_spectrum(N, K=3.0, trials=trials_per_N)
+        K_c_N = base_K_c * (10.0 / N)
+        K = 1.2 * K_c_N  # Transition regime
+        gap = analyze_eigenvalue_spectrum(N, K, trials=trials_per_N)
         gap_values.append(gap)
-        print(f"  N={N}: gap = {gap:.4f}")
+        print(f"  N={N}: gap = {gap:.4f} (K={K:.4f}, K_c={K_c_N:.4f})")
 
     # Fit gap ~ N^ν
     fit_result = fit_power_law(np.array(N_values), np.array(gap_values))
@@ -577,11 +607,16 @@ def test_kakeya_geometric_measure_theory(N_values: List[int], trials_per_N: int 
     """Test Kakeya Geometric Measure Theory."""
     print("Testing Kakeya Geometric Measure Theory...")
 
+    # Use K in transition regime
+    base_K_c = 0.0250  # For N=10
+    
     dim_values = []
     for N in N_values:
-        dim = estimate_fractal_dimension(N, K=3.0, trials=trials_per_N)
+        K_c_N = base_K_c * (10.0 / N)
+        K = 1.2 * K_c_N  # Transition regime
+        dim = estimate_fractal_dimension(N, K, trials=trials_per_N)
         dim_values.append(dim)
-        print(f"  N={N}: d_b = {dim:.3f}")
+        print(f"  N={N}: d_b = {dim:.3f} (K={K:.4f}, K_c={K_c_N:.4f})")
 
     # Fit d_b ~ N^ν
     fit_result = fit_power_law(np.array(N_values), np.array(dim_values))
