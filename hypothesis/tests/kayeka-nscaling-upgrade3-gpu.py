@@ -66,6 +66,7 @@ try:
         # Estimate max N based on memory (rough approximation: N×N×8 bytes for float64 matrix)
         max_n_estimate = int((gpu_memory * 1024**3 / 8) ** 0.5 / 2)  # Conservative estimate
         print(f"Estimated max N for GPU: ~{max_n_estimate} oscillators")
+        print("Note: GPU acceleration works in main process only (multiprocessing limitation)")
     else:
         print("GPU not available, using CPU-only mode")
 except ImportError:
@@ -1218,7 +1219,7 @@ def _compute_basin_volume(N: int, K: float, trials: int) -> float:
 def _run_basin_volume_trials(args: Tuple[int, float, int]) -> int:
     """
     Run basin volume trials for a single process.
-    Initializes GPU context for multiprocessing compatibility.
+    GPU acceleration not available in child processes due to CUDA context limitations.
 
     Args:
         args: (N, K, num_trials)
@@ -1226,17 +1227,6 @@ def _run_basin_volume_trials(args: Tuple[int, float, int]) -> int:
     Returns:
         Number of trials that synchronized
     """
-    # Initialize GPU context in child process (required for multiprocessing)
-    global GPU_AVAILABLE, cp
-    if GPU_AVAILABLE:
-        try:
-            import cupy as cp
-            cupy.cuda.Device(0).use()  # Set device for this process
-        except Exception as e:
-            print(f"Warning: GPU initialization failed in child process: {e}")
-            GPU_AVAILABLE = False
-            cp = None
-
     N, K, num_trials = args
 
     converged = 0
@@ -1245,7 +1235,7 @@ def _run_basin_volume_trials(args: Tuple[int, float, int]) -> int:
         # Random initial conditions (uniform on circle)
         theta_0 = np.random.uniform(0, 2*np.pi, N)
 
-        # Run Kuramoto simulation
+        # Run Kuramoto simulation (CPU only in child processes)
         if _simulate_kuramoto_synchronization(theta_0, K):
             converged += 1
 
@@ -1280,7 +1270,10 @@ def _simulate_kuramoto_synchronization(theta_0: np.ndarray, K: float,
             # Test if GPU is actually accessible in this process
             import cupy as cp
             gpu_available_local = cp.cuda.runtime.getDeviceCount() > 0
-    except:
+            if gpu_available_local:
+                cp.cuda.Device(0).use()  # Ensure device is set
+    except Exception as e:
+        # GPU not available in this process (common with multiprocessing)
         gpu_available_local = False
 
     if gpu_available_local:
