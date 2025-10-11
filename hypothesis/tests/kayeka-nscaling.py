@@ -850,6 +850,35 @@ def _comprehensive_scaling_analysis(dimension_results: List[Dict]) -> Dict[str, 
     }
 
 
+def _bayesian_model_comparison(models: List[Dict]) -> Dict[str, Any]:
+    """Perform Bayesian model comparison using AIC/BIC"""
+    # Find best model by AIC
+    aic_scores = np.array([model['aic'] for model in models])
+    best_idx = np.argmin(aic_scores)
+
+    # Calculate relative likelihoods (Akaike weights)
+    delta_aic = aic_scores - aic_scores[best_idx]
+    relative_likelihoods = np.exp(-0.5 * delta_aic)
+    akaike_weights = relative_likelihoods / np.sum(relative_likelihoods)
+
+    # Bayes factors relative to null model (constant scaling)
+    null_idx = next((i for i, m in enumerate(models) if m['name'] == 'constant_scaling'), -1)
+    if null_idx >= 0:
+        kakeya_vs_null = relative_likelihoods[best_idx] / relative_likelihoods[null_idx] if relative_likelihoods[null_idx] > 0 else np.inf
+    else:
+        kakeya_vs_null = 1.0
+
+    # Model uncertainty (entropy of Akaike weights)
+    model_uncertainty = -np.sum(akaike_weights * np.log(akaike_weights + 1e-10))
+
+    return {
+        'best_model_idx': best_idx,
+        'akaike_weights': akaike_weights,
+        'kakeya_vs_null': kakeya_vs_null,
+        'model_uncertainty': model_uncertainty
+    }
+
+
 def _comprehensive_scaling_analysis_improved(volumes: List[Dict], N: int) -> Dict[str, Any]:
     """Comprehensive scaling analysis with multiple hypotheses and statistical validation"""
     # Extract data
@@ -1604,32 +1633,3 @@ def main_demonstrate_missing_derivations():
     print()
     print("The empirical success suggests a profound mathematical connection,")
     print("but the theoretical foundation remains conjectural and unproven.")
-
-
-def _bayesian_model_comparison(models: List[Dict]) -> Dict[str, Any]:
-    """Perform Bayesian model comparison using AIC/BIC"""
-    # Find best model by AIC
-    aic_scores = np.array([model['aic'] for model in models])
-    best_idx = np.argmin(aic_scores)
-
-    # Calculate relative likelihoods (Akaike weights)
-    delta_aic = aic_scores - aic_scores[best_idx]
-    relative_likelihoods = np.exp(-0.5 * delta_aic)
-    akaike_weights = relative_likelihoods / np.sum(relative_likelihoods)
-
-    # Bayes factors relative to null model (constant scaling)
-    null_idx = next((i for i, m in enumerate(models) if m['name'] == 'constant_scaling'), -1)
-    if null_idx >= 0:
-        kakeya_vs_null = relative_likelihoods[best_idx] / relative_likelihoods[null_idx] if relative_likelihoods[null_idx] > 0 else np.inf
-    else:
-        kakeya_vs_null = 1.0
-
-    # Model uncertainty (entropy of Akaike weights)
-    model_uncertainty = -np.sum(akaike_weights * np.log(akaike_weights + 1e-10))
-
-    return {
-        'best_model_idx': best_idx,
-        'akaike_weights': akaike_weights,
-        'kakeya_vs_null': kakeya_vs_null,
-        'model_uncertainty': model_uncertainty
-    }
