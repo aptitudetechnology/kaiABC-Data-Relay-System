@@ -418,7 +418,7 @@ def test_finite_size_scaling(N_values: List[int], trials_per_N: int = 100) -> Di
 
     xi_values = []
     for N in N_values:
-        xi = measure_correlation_length(N, K=1.5, trials=trials_per_N)
+        xi = measure_correlation_length(N, K=3.0, trials=trials_per_N)
         xi_values.append(xi)
         print(f"  N={N}: ξ = {xi:.2f}")
 
@@ -457,7 +457,7 @@ def test_central_limit_theorem(N_values: List[int], trials_per_N: int = 100) -> 
 
     sigma_r_values = []
     for N in N_values:
-        sigma_r = measure_order_parameter_fluctuations(N, K=1.5, trials=trials_per_N)
+        sigma_r = measure_order_parameter_fluctuations(N, K=3.0, trials=trials_per_N)
         sigma_r_values.append(sigma_r)
         print(f"  N={N}: σ_r = {sigma_r:.4f}")
 
@@ -495,7 +495,7 @@ def test_random_matrix_theory(N_values: List[int], trials_per_N: int = 50) -> Di
 
     gap_values = []
     for N in N_values:
-        gap = analyze_eigenvalue_spectrum(N, K=1.5, trials=trials_per_N)
+        gap = analyze_eigenvalue_spectrum(N, K=3.0, trials=trials_per_N)
         gap_values.append(gap)
         print(f"  N={N}: gap = {gap:.4f}")
 
@@ -534,7 +534,7 @@ def test_sphere_packing(N_values: List[int], trials_per_N: int = 100) -> Dict[st
     # For sphere packing, we need to measure basin volumes
     volume_values = []
     for N in N_values:
-        vol = compute_basin_volume(N, K=1.5, trials=trials_per_N)
+        vol = compute_basin_volume(N, K=3.0, trials=trials_per_N)
         volume_values.append(vol)
         print(f"  N={N}: V = {vol:.3f}")
 
@@ -572,7 +572,7 @@ def test_kakeya_geometric_measure_theory(N_values: List[int], trials_per_N: int 
 
     dim_values = []
     for N in N_values:
-        dim = estimate_fractal_dimension(N, K=1.5, trials=trials_per_N)
+        dim = estimate_fractal_dimension(N, K=3.0, trials=trials_per_N)
         dim_values.append(dim)
         print(f"  N={N}: d_b = {dim:.3f}")
 
@@ -614,7 +614,7 @@ def test_basin_volume_scaling_directly(N_values: List[int], trials_per_N: int = 
     """
     print("Testing Basin Volume √N Scaling Directly...")
 
-    K_c = 0.2  # Approximate critical coupling for omega_std=0.1
+    K_c = 2.0  # Approximate critical coupling for omega_std=0.1
     K = 1.5 * K_c  # Transition regime (where √N appears in V9.1)
 
     volumes = []
