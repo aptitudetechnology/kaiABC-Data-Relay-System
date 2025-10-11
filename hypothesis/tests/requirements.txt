@@ -21,7 +21,31 @@ tqdm>=4.65.0
 # - scipy: Strongly recommended for proper confidence interval calculations
 # - matplotlib: Optional but recommended for result visualization
 # - tqdm: Optional but improves user experience for long-running tests
+# - cupy-cuda11x: Optional but provides massive speedup for GPU-enabled simulations
+#
+# GPU Setup Requirements:
+# 1. NVIDIA GPU with CUDA support (compute capability >= 3.0)
+# 2. NVIDIA drivers installed (nvidia-driver-470 for older GPUs)
+# 3. CUDA toolkit 11.x installed
+# 4. Install GPU libraries: pip install cupy-cuda11x
 #
 # Install all: pip install -r requirements.txt
 # Install core only: pip install numpy
 # Install with plotting: pip install numpy scipy matplotlib
+# Install with GPU support: pip install numpy scipy matplotlib cupy-cuda11x
+
+# GPU Acceleration (OPTIONAL)
+# For large-scale simulations, consider installing CuPy or PyTorch with CUDA support.
+# Example for CuPy (best for NumPy-like code):
+# pip install cupy-cuda11x
+# Example for PyTorch with CUDA:
+# pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+
+# GPU Computing Libraries (OPTIONAL - for GPU acceleration)
+# CuPy: Drop-in NumPy replacement with CUDA support (recommended for this codebase)
+cupy-cuda11x>=12.0.0
+
+# Alternative: PyTorch with CUDA support (more general-purpose ML framework)
+# torch>=1.13.0+cu118
+# torchvision>=0.14.0+cu118
+# torchaudio>=0.13.0+cu118
