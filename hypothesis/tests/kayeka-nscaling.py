@@ -408,6 +408,7 @@ def _compute_enhanced_biological_parameters(T: float, sigma_omega: float) -> Dic
     metabolic_rate = 1.0 + 0.3 * np.exp(-(T - 25)**2 / 100)  # Metabolic scaling
 
     return {
+        'temperature': T,  # Add temperature to the parameters
         'K_bio': K_bio,
         'freq_dispersion': freq_dispersion,
         'circadian_amplitude': circadian_amplitude,
