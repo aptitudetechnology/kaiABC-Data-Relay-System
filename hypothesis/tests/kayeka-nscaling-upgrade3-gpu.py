@@ -54,6 +54,8 @@ from concurrent.futures import ProcessPoolExecutor
 import time
 
 # GPU Support with CPU fallback
+GPU_AVAILABLE = False
+cp = None
 try:
     import cupy as cp
     import cupy.cuda
@@ -69,10 +71,10 @@ try:
         print("Note: GPU acceleration works in main process only (multiprocessing limitation)")
     else:
         print("GPU not available, using CPU-only mode")
-except ImportError:
-    cp = None
+except Exception as e:
     GPU_AVAILABLE = False
-    print("CuPy not available, using CPU-only mode")
+    cp = None
+    print(f"GPU initialization failed ({e}), using CPU-only mode with multiprocessing")
 
 # Optional dependencies with fallbacks
 try:
