@@ -227,46 +227,10 @@ def measure_correlation_length(N: int, K: float, trials: int = 100) -> float:
     Returns:
         xi: Correlation length
     """
-    def single_correlation_trial(_):
-        theta, _ = simulate_kuramoto(N, K, t_max=50.0)
-
-        # Compute spatial correlation function
-        C_r = []
-        max_r = min(N // 2, 20)  # Limit to avoid boundary effects
-
-        for r in range(1, max_r):
-            correlation = np.mean([
-                np.cos(theta[i] - theta[(i + r) % N])
-                for i in range(N)
-            ])
-            C_r.append(correlation)
-
-        # Find correlation length (where C(r) drops to 1/e)
-        C_r = np.array(C_r)
-        if len(C_r) > 1:
-            # Fit exponential decay
-            r_values = np.arange(1, len(C_r) + 1)
-            try:
-                if SCIPY_AVAILABLE:
-                    def exp_decay(r, xi, C0):
-                        return C0 * np.exp(-r / xi)
-
-                    popt, _ = curve_fit(exp_decay, r_values, C_r, p0=[2.0, C_r[0]],
-                                      bounds=([0.1, 0], [10, 1]))
-                    xi = popt[0]
-                else:
-                    # Simple estimate: first r where C(r) < 1/e
-                    e_idx = np.where(C_r < 1/np.e)[0]
-                    xi = e_idx[0] + 1 if len(e_idx) > 0 else len(C_r)
-            except:
-                xi = 2.0  # Default
-        else:
-            xi = 2.0
-
-        return xi
-
+    # Use multiprocessing for parallel trials
+    worker_func = functools.partial(_single_correlation_trial, N, K)
     with mp.Pool(processes=min(mp.cpu_count(), 8)) as pool:
-        correlations = pool.map(single_correlation_trial, range(trials))
+        correlations = pool.map(worker_func, range(trials))
 
     return np.mean(correlations)
 
@@ -283,13 +247,10 @@ def measure_order_parameter_fluctuations(N: int, K: float, trials: int = 100) ->
     Returns:
         sigma_r: Standard deviation of order parameter
     """
-    def single_r_trial(_):
-        theta, _ = simulate_kuramoto(N, K, t_max=50.0)
-        r = np.abs(np.mean(np.exp(1j * theta)))
-        return r
-
+    # Use multiprocessing for parallel trials
+    worker_func = functools.partial(_single_r_trial, N, K)
     with mp.Pool(processes=min(mp.cpu_count(), 8)) as pool:
-        r_values = pool.map(single_r_trial, range(trials))
+        r_values = pool.map(worker_func, range(trials))
 
     return np.std(r_values)
 
@@ -306,36 +267,10 @@ def analyze_eigenvalue_spectrum(N: int, K: float, trials: int = 50) -> float:
     Returns:
         avg_gap: Average eigenvalue spacing near zero
     """
-    def single_eigenvalue_trial(_):
-        # Generate random coupling matrix (simplified)
-        # In full implementation, this would be the actual Kuramoto coupling matrix
-        # For now, use random matrix approximation
-        matrix = np.random.normal(0, 1, (N, N))
-        matrix = (matrix + matrix.T) / 2  # Make symmetric
-
-        # Add coupling
-        for i in range(N):
-            for j in range(N):
-                if i != j:
-                    matrix[i, j] += K / N
-
-        # Compute eigenvalues
-        eigenvals = np.linalg.eigvals(matrix)
-        eigenvals = np.sort(eigenvals)
-
-        # Find spacing near zero (simplified)
-        zero_idx = np.argmin(np.abs(eigenvals))
-        if zero_idx > 0:
-            gap = eigenvals[zero_idx] - eigenvals[zero_idx - 1]
-        elif zero_idx < len(eigenvals) - 1:
-            gap = eigenvals[zero_idx + 1] - eigenvals[zero_idx]
-        else:
-            gap = 1.0
-
-        return abs(gap)
-
+    # Use multiprocessing for parallel trials
+    worker_func = functools.partial(_single_eigenvalue_trial, N, K)
     with mp.Pool(processes=min(mp.cpu_count(), 8)) as pool:
-        gaps = pool.map(single_eigenvalue_trial, range(trials))
+        gaps = pool.map(worker_func, range(trials))
 
     return np.mean(gaps)
 
@@ -352,14 +287,10 @@ def estimate_fractal_dimension(N: int, K: float, trials: int = 100) -> float:
     Returns:
         dimension: Estimated fractal dimension
     """
-    def single_dimension_trial(_):
-        # Placeholder: random walk around boundary
-        # Real implementation would track trajectories near boundary
-        base_dim = 0.5 + 0.3 * np.log(N) / np.log(100) + np.random.normal(0, 0.05)
-        return base_dim
-
+    # Use multiprocessing for parallel trials
+    worker_func = functools.partial(_single_dimension_trial, N, K)
     with mp.Pool(processes=min(mp.cpu_count(), 8)) as pool:
-        dimensions = pool.map(single_dimension_trial, range(trials))
+        dimensions = pool.map(worker_func, range(trials))
 
     return np.mean(dimensions)
 
