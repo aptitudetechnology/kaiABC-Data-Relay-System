@@ -1093,6 +1093,20 @@ def _interpret_improved_results(overall_analysis: Dict[str, Any]) -> str:
     else:
         return 'INCONCLUSIVE'
 
+
+def _interpret_scaling_results_improved(overall_scaling: Dict[str, Any]) -> str:
+    """Interpret the scaling results"""
+    evidence = overall_scaling['kakeya_evidence_strength']
+    confidence = overall_scaling['confidence_level']
+    
+    if evidence == 'Strong' and confidence > 0.9:
+        return 'STRONG_SUPPORT'
+    elif evidence in ['Strong', 'Moderate']:
+        return 'MODERATE_SUPPORT'
+    else:
+        return 'WEAK'
+
+
 def _compute_basin_volume(N: int, K: float, trials: int) -> float:
     """
     Compute basin volume using Monte Carlo simulation with SMP support.
