@@ -444,6 +444,10 @@ def _compute_basin_volume_with_uncertainty(N: int, K: float, trials: int) -> Dic
     mean_vol = np.mean(volumes)
     std_vol = np.std(volumes)
 
+    # Ensure minimum uncertainty for numerical stability
+    min_std = 0.001  # Minimum 0.1% uncertainty
+    std_vol = max(std_vol, min_std)
+
     return {
         'mean': mean_vol,
         'std': std_vol,
@@ -854,26 +858,47 @@ def _bayesian_model_comparison(models: List[Dict]) -> Dict[str, Any]:
     """Perform Bayesian model comparison using AIC/BIC"""
     # Find best model by AIC
     aic_scores = np.array([model['aic'] for model in models])
-    best_idx = np.argmin(aic_scores)
+
+    # Handle NaN or inf values
+    valid_mask = np.isfinite(aic_scores)
+    if not np.any(valid_mask):
+        # All models invalid, return default
+        return {
+            'best_model_idx': 0,
+            'akaike_weights': np.ones(len(models)) / len(models),
+            'kakeya_vs_null': 1.0,
+            'model_uncertainty': 1.0
+        }
+
+    # Use only valid models
+    valid_aic = aic_scores[valid_mask]
+    best_idx = np.argmin(valid_aic)
+    actual_best_idx = np.where(valid_mask)[0][best_idx]
 
     # Calculate relative likelihoods (Akaike weights)
-    delta_aic = aic_scores - aic_scores[best_idx]
+    delta_aic = valid_aic - valid_aic[best_idx]
     relative_likelihoods = np.exp(-0.5 * delta_aic)
     akaike_weights = relative_likelihoods / np.sum(relative_likelihoods)
 
+    # Create full weight array
+    full_weights = np.zeros(len(models))
+    full_weights[valid_mask] = akaike_weights
+
     # Bayes factors relative to null model (constant scaling)
     null_idx = next((i for i, m in enumerate(models) if m['name'] == 'constant_scaling'), -1)
-    if null_idx >= 0:
-        kakeya_vs_null = relative_likelihoods[best_idx] / relative_likelihoods[null_idx] if relative_likelihoods[null_idx] > 0 else np.inf
+    if null_idx >= 0 and valid_mask[null_idx]:
+        null_weight = akaike_weights[np.where(valid_mask)[0] == null_idx][0]
+        kakeya_vs_null = relative_likelihoods[best_idx] / relative_likelihoods[np.where(valid_mask)[0] == null_idx][0] if null_weight > 0 else 1.0
     else:
         kakeya_vs_null = 1.0
 
     # Model uncertainty (entropy of Akaike weights)
-    model_uncertainty = -np.sum(akaike_weights * np.log(akaike_weights + 1e-10))
+    valid_weights = akaike_weights[akaike_weights > 0]
+    model_uncertainty = -np.sum(valid_weights * np.log(valid_weights + 1e-10))
 
     return {
-        'best_model_idx': best_idx,
-        'akaike_weights': akaike_weights,
+        'best_model_idx': actual_best_idx,
+        'akaike_weights': full_weights,
         'kakeya_vs_null': kakeya_vs_null,
         'model_uncertainty': model_uncertainty
     }
@@ -935,7 +960,7 @@ def _fit_multiple_scaling_models(volumes: List[Dict], N: int) -> List[Dict]:
                 'exponent': 1.0,  # 1/N
                 'parameters': popt_1n,
                 'r_squared': r_squared_1n,
-                'aic': len(vol_values) * np.log(ss_res_1n/len(vol_values)) + 2*2 if ss_res_1n > 0 else np.inf
+                'aic': len(vol_values) * np.log(max(ss_res_1n/len(vol_values), 1e-10)) + 2*2
             })
         else:
             models.append({
@@ -974,7 +999,7 @@ def _fit_multiple_scaling_models(volumes: List[Dict], N: int) -> List[Dict]:
                 'exponent': 0.5,  # 1/√N
                 'parameters': popt_sqrtn,
                 'r_squared': r_squared_sqrtn,
-                'aic': len(vol_values) * np.log(ss_res_sqrtn/len(vol_values)) + 2*2 if ss_res_sqrtn > 0 else np.inf
+                'aic': len(vol_values) * np.log(max(ss_res_sqrtn/len(vol_values), 1e-10)) + 2*2
             })
         else:
             models.append({
@@ -1013,7 +1038,7 @@ def _fit_multiple_scaling_models(volumes: List[Dict], N: int) -> List[Dict]:
                 'exponent': 1.0/np.log(N) if N > 1 else 0,  # 1/log N
                 'parameters': popt_logn,
                 'r_squared': r_squared_logn,
-                'aic': len(vol_values) * np.log(ss_res_logn/len(vol_values)) + 2*2 if ss_res_logn > 0 else np.inf
+                'aic': len(vol_values) * np.log(max(ss_res_logn/len(vol_values), 1e-10)) + 2*2
             })
         else:
             models.append({
@@ -1045,7 +1070,7 @@ def _fit_multiple_scaling_models(volumes: List[Dict], N: int) -> List[Dict]:
             'exponent': 0.0,  # constant
             'parameters': [mean_vol],
             'r_squared': r_squared_const,
-            'aic': len(vol_values) * np.log(ss_res_const/len(vol_values)) + 2*1 if ss_res_const > 0 else np.inf
+            'aic': len(vol_values) * np.log(max(ss_res_const/len(vol_values), 1e-10)) + 2*1
         })
     except:
         models.append({
