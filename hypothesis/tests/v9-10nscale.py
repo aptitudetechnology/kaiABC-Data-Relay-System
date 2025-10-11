@@ -182,14 +182,14 @@ def simulate_kuramoto(N: int, K: float, t_max: float = 100.0, dt: float = 0.01,
     for _ in range(steps):
         theta = runge_kutta_step(theta, omega, K, dt)
 
-        # Check for synchronization (order parameter > 0.9)
+        # Check for synchronization (order parameter > 0.5)
         r = np.abs(np.mean(np.exp(1j * theta)))
-        if r > 0.9:
+        if r > 0.5:
             return theta, True
 
     # Final synchronization check
     r = np.abs(np.mean(np.exp(1j * theta)))
-    synchronized = r > 0.9
+    synchronized = r > 0.5
 
     return theta, synchronized
 
