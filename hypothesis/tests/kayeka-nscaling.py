@@ -53,6 +53,7 @@ except ImportError:
 
 try:
     from scipy import stats
+    from scipy.optimize import curve_fit
     SCIPY_AVAILABLE = True
 except ImportError:
     SCIPY_AVAILABLE = False
@@ -864,7 +865,6 @@ def _fit_multiple_scaling_models(volumes: List[Dict], N: int) -> List[Dict]:
         def model_1n(x):
             return x[0]/N + x[1]
 
-        from scipy.optimize import curve_fit
         popt_1n, pcov_1n = curve_fit(model_1n, k_values, vol_values,
                                    p0=[1.0, 0.5], sigma=vol_errors,
                                    bounds=([0, 0], [10, 1]))
