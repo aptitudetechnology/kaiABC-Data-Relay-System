@@ -850,6 +850,32 @@ def _comprehensive_scaling_analysis(dimension_results: List[Dict]) -> Dict[str, 
     }
 
 
+def _comprehensive_scaling_analysis_improved(volumes: List[Dict], N: int) -> Dict[str, Any]:
+    """Comprehensive scaling analysis with multiple hypotheses and statistical validation"""
+    # Extract data
+    k_values = np.array([v['K'] for v in volumes])
+    vol_values = np.array([v['volume'] for v in volumes])
+
+    # Test multiple scaling models
+    models = _fit_multiple_scaling_models(volumes, N)
+
+    # Bayesian model comparison
+    bayesian_comparison = _bayesian_model_comparison(models)
+
+    # Best model selection
+    best_model = models[bayesian_comparison['best_model_idx']]
+
+    return {
+        'models': models,
+        'bayesian_comparison': bayesian_comparison,
+        'best_model': best_model,
+        'kakeya_bayes_factor': bayesian_comparison['kakeya_vs_null'],
+        'model_uncertainty': bayesian_comparison['model_uncertainty'],
+        'goodness_of_fit': best_model['r_squared'],
+        'confidence_intervals': [best_model['exponent'] - 0.1, best_model['exponent'] + 0.1]  # Placeholder confidence intervals
+    }
+
+
 def _fit_multiple_scaling_models(volumes: List[Dict], N: int) -> List[Dict]:
     """Fit multiple scaling models to basin volume data"""
     # Extract data
@@ -865,21 +891,31 @@ def _fit_multiple_scaling_models(volumes: List[Dict], N: int) -> List[Dict]:
         def model_1n(x):
             return x[0]/N + x[1]
 
-        popt_1n, pcov_1n = curve_fit(model_1n, k_values, vol_values,
-                                   p0=[1.0, 0.5], sigma=vol_errors,
-                                   bounds=([0, 0], [10, 1]))
-        residuals_1n = vol_values - model_1n(k_values, *popt_1n)
-        ss_res_1n = np.sum(residuals_1n**2)
-        ss_tot_1n = np.sum((vol_values - np.mean(vol_values))**2)
-        r_squared_1n = 1 - (ss_res_1n / ss_tot_1n) if ss_tot_1n > 0 else 0
+        if SCIPY_AVAILABLE:
+            from scipy.optimize import curve_fit
+            popt_1n, pcov_1n = curve_fit(model_1n, k_values, vol_values,
+                                       p0=[1.0, 0.5], sigma=vol_errors,
+                                       bounds=([0, 0], [10, 1]))
+            residuals_1n = vol_values - model_1n(k_values, *popt_1n)
+            ss_res_1n = np.sum(residuals_1n**2)
+            ss_tot_1n = np.sum((vol_values - np.mean(vol_values))**2)
+            r_squared_1n = 1 - (ss_res_1n / ss_tot_1n) if ss_tot_1n > 0 else 0
 
-        models.append({
-            'name': '1/N_scaling',
-            'exponent': 1.0,  # 1/N
-            'parameters': popt_1n,
-            'r_squared': r_squared_1n,
-            'aic': len(vol_values) * np.log(ss_res_1n/len(vol_values)) + 2*2 if ss_res_1n > 0 else np.inf
-        })
+            models.append({
+                'name': '1/N_scaling',
+                'exponent': 1.0,  # 1/N
+                'parameters': popt_1n,
+                'r_squared': r_squared_1n,
+                'aic': len(vol_values) * np.log(ss_res_1n/len(vol_values)) + 2*2 if ss_res_1n > 0 else np.inf
+            })
+        else:
+            models.append({
+                'name': '1/N_scaling',
+                'exponent': 1.0,
+                'parameters': [1.0, 0.5],
+                'r_squared': 0.0,
+                'aic': np.inf
+            })
     except:
         models.append({
             'name': '1/N_scaling',
@@ -894,21 +930,31 @@ def _fit_multiple_scaling_models(volumes: List[Dict], N: int) -> List[Dict]:
         def model_sqrtn(x):
             return x[0]/np.sqrt(N) + x[1]
 
-        popt_sqrtn, pcov_sqrtn = curve_fit(model_sqrtn, k_values, vol_values,
-                                         p0=[1.0, 0.5], sigma=vol_errors,
-                                         bounds=([0, 0], [10, 1]))
-        residuals_sqrtn = vol_values - model_sqrtn(k_values, *popt_sqrtn)
-        ss_res_sqrtn = np.sum(residuals_sqrtn**2)
-        ss_tot_sqrtn = np.sum((vol_values - np.mean(vol_values))**2)
-        r_squared_sqrtn = 1 - (ss_res_sqrtn / ss_tot_sqrtn) if ss_tot_sqrtn > 0 else 0
+        if SCIPY_AVAILABLE:
+            from scipy.optimize import curve_fit
+            popt_sqrtn, pcov_sqrtn = curve_fit(model_sqrtn, k_values, vol_values,
+                                             p0=[1.0, 0.5], sigma=vol_errors,
+                                             bounds=([0, 0], [10, 1]))
+            residuals_sqrtn = vol_values - model_sqrtn(k_values, *popt_sqrtn)
+            ss_res_sqrtn = np.sum(residuals_sqrtn**2)
+            ss_tot_sqrtn = np.sum((vol_values - np.mean(vol_values))**2)
+            r_squared_sqrtn = 1 - (ss_res_sqrtn / ss_tot_sqrtn) if ss_tot_sqrtn > 0 else 0
 
-        models.append({
-            'name': '1/sqrt(N)_scaling',
-            'exponent': 0.5,  # 1/√N
-            'parameters': popt_sqrtn,
-            'r_squared': r_squared_sqrtn,
-            'aic': len(vol_values) * np.log(ss_res_sqrtn/len(vol_values)) + 2*2 if ss_res_sqrtn > 0 else np.inf
-        })
+            models.append({
+                'name': '1/sqrt(N)_scaling',
+                'exponent': 0.5,  # 1/√N
+                'parameters': popt_sqrtn,
+                'r_squared': r_squared_sqrtn,
+                'aic': len(vol_values) * np.log(ss_res_sqrtn/len(vol_values)) + 2*2 if ss_res_sqrtn > 0 else np.inf
+            })
+        else:
+            models.append({
+                'name': '1/sqrt(N)_scaling',
+                'exponent': 0.5,
+                'parameters': [1.0, 0.5],
+                'r_squared': 0.0,
+                'aic': np.inf
+            })
     except:
         models.append({
             'name': '1/sqrt(N)_scaling',
@@ -923,21 +969,31 @@ def _fit_multiple_scaling_models(volumes: List[Dict], N: int) -> List[Dict]:
         def model_logn(x):
             return x[0]/np.log(N) + x[1] if N > 1 else x[1]
 
-        popt_logn, pcov_logn = curve_fit(model_logn, k_values, vol_values,
-                                       p0=[1.0, 0.5], sigma=vol_errors,
-                                       bounds=([0, 0], [10, 1]))
-        residuals_logn = vol_values - model_logn(k_values, *popt_logn)
-        ss_res_logn = np.sum(residuals_logn**2)
-        ss_tot_logn = np.sum((vol_values - np.mean(vol_values))**2)
-        r_squared_logn = 1 - (ss_res_logn / ss_tot_logn) if ss_tot_logn > 0 else 0
+        if SCIPY_AVAILABLE:
+            from scipy.optimize import curve_fit
+            popt_logn, pcov_logn = curve_fit(model_logn, k_values, vol_values,
+                                           p0=[1.0, 0.5], sigma=vol_errors,
+                                           bounds=([0, 0], [10, 1]))
+            residuals_logn = vol_values - model_logn(k_values, *popt_logn)
+            ss_res_logn = np.sum(residuals_logn**2)
+            ss_tot_logn = np.sum((vol_values - np.mean(vol_values))**2)
+            r_squared_logn = 1 - (ss_res_logn / ss_tot_logn) if ss_tot_logn > 0 else 0
 
-        models.append({
-            'name': '1/log(N)_scaling',
-            'exponent': 1.0/np.log(N) if N > 1 else 0,  # 1/log N
-            'parameters': popt_logn,
-            'r_squared': r_squared_logn,
-            'aic': len(vol_values) * np.log(ss_res_logn/len(vol_values)) + 2*2 if ss_res_logn > 0 else np.inf
-        })
+            models.append({
+                'name': '1/log(N)_scaling',
+                'exponent': 1.0/np.log(N) if N > 1 else 0,  # 1/log N
+                'parameters': popt_logn,
+                'r_squared': r_squared_logn,
+                'aic': len(vol_values) * np.log(ss_res_logn/len(vol_values)) + 2*2 if ss_res_logn > 0 else np.inf
+            })
+        else:
+            models.append({
+                'name': '1/log(N)_scaling',
+                'exponent': 1.0/np.log(N) if N > 1 else 0,
+                'parameters': [1.0, 0.5],
+                'r_squared': 0.0,
+                'aic': np.inf
+            })
     except:
         models.append({
             'name': '1/log(N)_scaling',
@@ -972,32 +1028,6 @@ def _fit_multiple_scaling_models(volumes: List[Dict], N: int) -> List[Dict]:
         })
 
     return models
-
-
-def _comprehensive_scaling_analysis_improved(volumes: List[Dict], N: int) -> Dict[str, Any]:
-    """Comprehensive scaling analysis with multiple hypotheses and statistical validation"""
-    # Extract data
-    k_values = np.array([v['K'] for v in volumes])
-    vol_values = np.array([v['volume'] for v in volumes])
-
-    # Test multiple scaling models
-    models = _fit_multiple_scaling_models(volumes, N)
-
-    # Bayesian model comparison
-    bayesian_comparison = _bayesian_model_comparison(models)
-
-    # Best model selection
-    best_model = models[bayesian_comparison['best_model_idx']]
-
-    return {
-        'models': models,
-        'bayesian_comparison': bayesian_comparison,
-        'best_model': best_model,
-        'kakeya_bayes_factor': bayesian_comparison['kakeya_vs_null'],
-        'model_uncertainty': bayesian_comparison['model_uncertainty'],
-        'goodness_of_fit': best_model['r_squared'],
-        'confidence_intervals': [best_model['exponent'] - 0.1, best_model['exponent'] + 0.1]  # Placeholder confidence intervals
-    }
 
 
 def _validate_overall_scaling_patterns(scaling_tests: List[Dict]) -> Dict[str, Any]:
@@ -1230,6 +1260,8 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
 from typing import Tuple, Optional, Dict, Any
 
 
@@ -1572,6 +1604,7 @@ def main_demonstrate_missing_derivations():
     print()
     print("The empirical success suggests a profound mathematical connection,")
     print("but the theoretical foundation remains conjectural and unproven.")
+
 
 def _bayesian_model_comparison(models: List[Dict]) -> Dict[str, Any]:
     """Perform Bayesian model comparison using AIC/BIC"""
