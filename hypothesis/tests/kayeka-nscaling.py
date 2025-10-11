@@ -967,7 +967,7 @@ def _run_basin_volume_trials(args: Tuple[int, float, int]) -> int:
     Returns:
         Number of trials that synchronized
     """
-    N, K, num_trials = args, 0
+    N, K, num_trials = args
 
     converged = 0
 
