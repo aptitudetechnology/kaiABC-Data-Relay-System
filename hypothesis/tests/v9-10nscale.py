@@ -3,17 +3,13 @@
 Theoretical Framework Testing for √N Scaling in Kuramoto Basins
 ===============================================================
 
-This script tests multiple c        # Check for synchronization (order parameter > 0.3)
-        r = np.abs(np.mean(np.exp(1j * theta)))
-        if r > 0.3:
-            return theta, True
-
-    # Final synchronization check
-    r = np.abs(np.mean(np.exp(1j * theta)))
-    synchronized = r > 0.3 theories to explain why √N scaling
+This script tests multiple theories to explain why √N scaling
 works empirically in Kuramoto oscillator basin volumes.
 
-Based on v9def test_sphere_packing(N_values: List[int], trials_per_N: int = 100) -> Dict[str, Any]:
+Based on v9-1nscale.md research plan.
+"""
+
+import numpy as np
     """Test Sphere Packing/Geometric Constraints."""
     print("Testing Sphere Packing Theory...")
 
