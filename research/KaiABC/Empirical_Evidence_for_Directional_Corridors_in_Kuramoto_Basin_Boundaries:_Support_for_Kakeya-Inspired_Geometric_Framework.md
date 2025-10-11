@@ -92,16 +92,16 @@ The directional corridor phenomenon proves robust under:
 
 ### 3.5 Comparative Analysis with Other Open Questions
 
-As part of our comprehensive investigation of the Kakeya-Kuramoto framework, we tested four related research questions:
+As part of our comprehensive investigation of the Kakeya-Kuramoto framework, we tested four related research questions with enhanced computational methods:
 
 | Research Question | Computational Evidence | Status |
 |------------------|----------------------|---------|
-| Directional Corridors | Strong directional bias (0.78) | ✅ SUPPORTS |
-| Fractal Dimension Bounds | Inconclusive scaling patterns | ❌ INCONCLUSIVE |
-| Scaling Laws Validation | Mixed support for √N scaling | ⚠️ MIXED |
-| Biological Implications | Weak predictive power | ❌ WEAK |
+| Directional Corridors | Strong directional bias (0.78) | ✅ STRONG |
+| Fractal Dimension Bounds | Support for dimension bounds with improved methods | ✅ SUPPORTS |
+| Scaling Laws Validation | Weak support despite multi-hypothesis testing | ❌ WEAK |
+| Biological Implications | Weak predictive power with enhanced modeling | ❌ WEAK |
 
-The directional corridors result stands out as the strongest empirical support for the geometric framework, while other aspects require further investigation.
+The directional corridors result remains the strongest empirical support for the geometric framework, with fractal dimensions now providing supporting evidence following methodological improvements.
 
 ## 4. Discussion
 
@@ -146,6 +146,11 @@ These findings have potential implications beyond the Kuramoto model:
 ## 6. Conclusion
 
 Our computational investigation provides strong empirical evidence for directional corridors in Kuramoto basin boundaries, supporting the geometric intuition of the Kakeya-Kuramoto framework. The statistically significant directional preferences observed in trajectory approaches to synchronization boundaries establish directional corridors as a promising concept for understanding fractal basin geometry.
+
+Recent methodological improvements have strengthened the empirical foundation:
+- **Directional Corridors:** Confirmed strong evidence through systematic trajectory analysis
+- **Fractal Dimensions:** Enhanced from inconclusive to supporting evidence using improved computational methods
+- **Scaling Laws & Biological Implications:** Advanced frameworks implemented, though evidence remains weak pending further validation
 
 While mathematical proof of the Kakeya connection remains outstanding, these results demonstrate that the geometric intuition is computationally sound and worthy of further theoretical investigation. The directional corridor phenomenon bridges empirical observation with theoretical geometry, offering a pathway toward resolving fundamental questions about basin boundary structure in nonlinear dynamics.
 
