@@ -1,14 +1,27 @@
-# KaiABC Hypothesis Testing - Python Dependencies
+# KaiABC Enhanced Hypothesis Testing - Python Dependencies
 # Install with: pip install -r requirements.txt
 
-# Core scientific computing
+# Core scientific computing (REQUIRED)
 numpy>=1.21.0
 
-# Plotting and visualization (optional, for extended analysis)
-matplotlib>=3.5.0
-
-# Data analysis (for future hypothesis tests)
+# Statistical analysis and confidence intervals (RECOMMENDED)
+# Provides Wilson score intervals for rigorous uncertainty quantification
 scipy>=1.7.0
 
-# Optional: Progress bars for long simulations
+# Plotting and visualization (OPTIONAL)
+# Enables publication-quality plots and formula comparison visualizations
+matplotlib>=3.5.0
+
+# Progress bars for long simulations (OPTIONAL)
+# Shows progress during Monte Carlo trials and adaptive sampling
 tqdm>=4.65.0
+
+# Installation Notes:
+# - numpy: Required for all numerical computations
+# - scipy: Strongly recommended for proper confidence interval calculations
+# - matplotlib: Optional but recommended for result visualization
+# - tqdm: Optional but improves user experience for long-running tests
+#
+# Install all: pip install -r requirements.txt
+# Install core only: pip install numpy
+# Install with plotting: pip install numpy scipy matplotlib

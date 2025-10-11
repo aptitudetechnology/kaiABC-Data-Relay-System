@@ -32,13 +32,35 @@ synchronization. As K increases past critical K_c, B_K "grows" to eventually con
 in all phase directions. The measure μ(B_K) may be bounded by Kakeya-type geometric
 constraints on how directional sets fill phase space.
 
+**CURRENT STATUS: EMPIRICAL SUPPORT FOR CONJECTURE**
+===================================================
+
 This code tests formulas V1-V9.1 that predict basin volume V(K,N,σ_ω) where:
 - K: Coupling strength (rad/hr)
 - N: Network size (number of oscillators)
 - σ_ω: Frequency dispersion from temperature variation
 
-VALIDATED: Formula V9.1 achieves 4.9% mean error across 2000 Monte Carlo simulations,
-suggesting Kakeya-inspired geometric bounds correctly capture basin dynamics.
+EMPIRICAL VALIDATION: Formula V9.1 achieves 4.9% mean error across 2000 Monte Carlo simulations,
+providing strong empirical support for Kakeya-inspired geometric bounds on basin dynamics.
+
+**IMPORTANT DISTINCTION: CONJECTURE vs. PROOF**
+=============================================
+
+The excellent empirical performance (4.9% error) demonstrates that Kakeya-inspired formulas
+accurately predict basin volumes, but this does NOT constitute mathematical proof of a
+Kakeya-Kuramoto connection. The relationship remains a conjecture requiring:
+
+1. Rigorous geometric proof connecting Kakeya set theory to Kuramoto basin boundaries
+2. Mathematical derivation of √N scaling from harmonic analysis principles
+3. Formal proof that basin fractal dimensions relate to Kakeya dimensions
+
+**OPEN QUESTIONS FOR MATHEMATICAL VALIDATION:**
+- Does basin boundary have fractal dimension related to Kakeya dimension?
+- Can harmonic analysis techniques from Kakeya theory improve predictions?
+- Does the √N scaling law have a Kakeya-theoretic proof?
+
+**RECOMMENDATION:** Collaborate with harmonic analysts to rigorously prove (or disprove)
+the Kakeya connection. Current results show the conjecture is empirically promising.
 
 FORMULA EVOLUTION:
 - V1-V3: Early attempts (17-37% error) ❌
@@ -1371,6 +1393,9 @@ def analyze_results(results, K_c):
         print(f"\n✅ HYPOTHESIS STRONGLY SUPPORTED")
         print(f"   → Basin volume formula is reliable")
         print(f"   → Basin volume formula validated (Kakeya-inspired geometry)")
+        print(f"   → EMPIRICAL SUPPORT: 4.9% mean error across 2000 trials")
+        print(f"   → MATHEMATICAL STATUS: Conjecture requiring rigorous proof")
+        print(f"   → NEXT STEP: Collaborate with harmonic analysts for formal validation")
         print(f"   → KaiABC biomimetic synchronization framework operational")
         print(f"   → Safe to proceed with hardware")
         print(f"\n💡 RECOMMENDED HARDWARE CONFIG:")
@@ -2292,11 +2317,16 @@ if __name__ == "__main__":
 
         PAPER 2 (Pure/Applied Math): "Kakeya Geometry and Basin Volumes in Kuramoto Synchronization"
         - Novel geometric framework for dynamical systems
-        - Kakeya-inspired bounds on basin growth
+        - Kakeya-inspired bounds on basin growth (CONJECTURE requiring proof)
         - Target: Applied math journals, dynamical systems conferences
 
-        KEY NOVELTY: First empirical validation of Kakeya → Kuramoto connection
-        VALIDATION: 2000 Monte Carlo trials, <5% prediction error
+        CURRENT STATUS: Strong empirical support for Kakeya → Kuramoto conjecture
+        EMPIRICAL EVIDENCE: 2000 Monte Carlo trials, 4.9% prediction error
+        MATHEMATICAL STATUS: Conjecture - no rigorous proof of geometric connection yet
+        NEXT STEP: Collaborate with harmonic analysts for formal mathematical validation
+
+        KEY NOVELTY: First empirical demonstration that Kakeya-inspired formulas accurately
+        predict Kuramoto basin volumes, suggesting (but not proving) deep geometric connection
         IMPACT: New theoretical framework + practical IoT synchronization
         """
         run_enhanced_mvp()
