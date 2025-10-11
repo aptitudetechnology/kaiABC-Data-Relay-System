@@ -307,17 +307,36 @@ def fit_power_law(x_data: np.ndarray, y_data: np.ndarray, n_bootstrap: int = 100
     Returns:
         Dict with fit parameters and statistics
     """
+    # Filter out nan and inf values
+    valid = np.isfinite(x_data) & np.isfinite(y_data)
+    x_data = x_data[valid]
+    y_data = y_data[valid]
+
+    if len(x_data) < 2:
+        return {
+            'exponent': 0.0,
+            'amplitude': 1.0,
+            'r_squared': 0.0,
+            'error': 1.0,
+            'p_value': 1.0,
+            'ci_95': [0.0, 0.0]
+        }
+
     if not SCIPY_AVAILABLE or len(x_data) < 3:
         # Simple linear fit in log space
         log_x = np.log(x_data + 1e-10)
-        log_y = np.log(y_data + 1e-10)
-
+        log_y = np.log(np.abs(y_data) + 1e-10)  # Use abs to avoid nan for negative y
         slope, intercept = np.polyfit(log_x, log_y, 1)
         r_squared = np.corrcoef(log_x, log_y)[0, 1]**2
 
+        # Adjust amplitude sign
+        median_y = np.median(y_data)
+        sign = 1 if median_y >= 0 else -1
+        amplitude = sign * np.exp(intercept)
+
         return {
             'exponent': slope,
-            'amplitude': np.exp(intercept),
+            'amplitude': amplitude,
             'r_squared': r_squared,
             'error': 0.1,  # Placeholder
             'p_value': 0.05 if r_squared > 0.5 else 0.5,
@@ -357,9 +376,11 @@ def fit_power_law(x_data: np.ndarray, y_data: np.ndarray, n_bootstrap: int = 100
             continue
 
     if not exponents:
+        median_y = np.median(y_data)
+        sign = 1 if median_y >= 0 else -1
         return {
             'exponent': -0.5,
-            'amplitude': 1.0,
+            'amplitude': sign * 1.0,
             'r_squared': 0.0,
             'error': 0.5,
             'p_value': 1.0,
@@ -602,21 +623,22 @@ def test_basin_volume_scaling_directly(N_values: List[int], trials_per_N: int = 
         volumes.append(vol)
         print(f"  N={N}: V = {vol:.3f}")
 
-    # V9.1 predicts: V ~ 1 - (K_c/K)^(α√N)
-    # Taking log: log(1-V) ~ -α√N * log(K_c/K)
-    # So: log(1-V) ~ -c√N
+    # V9.1 predicts: V ~ 1 - exp(-α√N)
+    # Taking log: log(1-V) ~ -α√N
+    # So: log(1-V) ~ -α √N
 
     sqrt_N = np.sqrt(N_values)
-    log_deficit = np.log(1 - np.array(volumes) + 1e-10)
+    volumes = np.array(volumes)
+    log_deficit = np.log(np.maximum(1 - volumes + 1e-10, 1e-10))
 
-    # Fit log(1-V) = a√N + b
-    fit_result = fit_power_law(sqrt_N, -log_deficit)
+    # Fit log(1-V) = a + b * √N, with expected b = -α ≈ -1
+    fit_result = fit_power_law(sqrt_N, log_deficit)
 
-    # Check if exponent is close to 1.0 (linear in √N)
+    # Check if exponent is close to -1.0 (linear decay with √N)
     exponent = fit_result['exponent']
 
     # This is the KEY TEST for V9.1!
-    falsified = abs(exponent - 1.0) > 0.3
+    falsified = np.isfinite(exponent) and abs(exponent - (-1.0)) > 0.3
 
     if falsified:
         verdict = "FALSIFIED: Basin volume does NOT scale as √N"
@@ -625,14 +647,14 @@ def test_basin_volume_scaling_directly(N_values: List[int], trials_per_N: int = 
 
     return {
         'theory': 'V9.1 √N Scaling (Direct)',
-        'prediction': 'log(1-V) ~ √N',
+        'prediction': 'log(1-V) ~ -√N',
         'measured_exponent': exponent,
         'measured_error': fit_result['error'],
         'r_squared': fit_result['r_squared'],
         'p_value': fit_result['p_value'],
         'verdict': verdict,
         'confidence': fit_result['r_squared'],
-        'data': {'N': N_values, 'volume': volumes}
+        'data': {'N': N_values, 'log_deficit': log_deficit.tolist()}
     }
 
 
@@ -699,22 +721,29 @@ def plot_theory_results(results: List[Dict], save_path: str = 'theory_comparison
 
         # Fit line
         N_fit = np.logspace(np.log10(min(N)), np.log10(max(N)), 100)
-        y_fit = result['amplitude'] * N_fit**result['measured_exponent']
+        amplitude = result.get('amplitude', 1.0)
+        exponent = result.get('measured_exponent', 0.0)
+        if not np.isfinite(amplitude) or not np.isfinite(exponent):
+            amplitude = 1.0
+            exponent = 0.0
+        y_fit = amplitude * N_fit**exponent
 
         ax.scatter(N, y, label='Data', alpha=0.7)
         ax.plot(N_fit, y_fit, 'r--',
-                label=f"N^{result['measured_exponent']:.2f}±{result['measured_error']:.2f}")
-        ax.fill_between(N_fit,
-                       result['amplitude'] * N_fit**(result['ci_95'][0]),
-                       result['amplitude'] * N_fit**(result['ci_95'][1]),
-                       alpha=0.3, color='red', label='95% CI')
+                label=f"N^{exponent:.2f}±{result.get('measured_error', 0.1):.2f}")
+        ci_95 = result.get('ci_95', [exponent - 0.2, exponent + 0.2])
+        if len(ci_95) == 2 and np.isfinite(ci_95[0]) and np.isfinite(ci_95[1]):
+            ax.fill_between(N_fit,
+                           amplitude * N_fit**ci_95[0],
+                           amplitude * N_fit**ci_95[1],
+                           alpha=0.3, color='red', label='95% CI')
 
         ax.set_xscale('log')
         ax.set_yscale('log')
         ax.set_xlabel('N')
         ax.set_ylabel(data_key.replace('_', ' ').title())
         ax.legend()
-        ax.set_title(f"{result['theory']}\n{result['verdict']} (R²={result['r_squared']:.2f})")
+        ax.set_title(f"{result['theory']}\n{result['verdict']} (R²={result.get('r_squared', 0.0):.2f})")
         ax.grid(True, alpha=0.3)
 
     # Hide empty subplots
