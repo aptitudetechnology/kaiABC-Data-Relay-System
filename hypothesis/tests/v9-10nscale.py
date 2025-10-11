@@ -621,14 +621,21 @@ def test_basin_volume_scaling_directly(N_values: List[int], trials_per_N: int = 
     """
     print("Testing Basin Volume √N Scaling Directly...")
 
-    K_c = 0.5  # Approximate critical coupling for omega_std=0.1
-    K = 1.1 * K_c  # Slightly above critical for transition regime
+    # Use parameters that actually allow synchronization (from enhanced_test_basin_volume.py)
+    # K_c = 0.0250 rad/hr for N=10, Q10=1.1, sigma_T=5.0
+    # Scale K_c with N: K_c ∝ 1/N (theoretical scaling)
+    base_K_c = 0.0250  # For N=10
+    K = 1.5 * base_K_c  # Fixed K, not scaled with N for fair comparison
 
     volumes = []
     for N in N_values:
-        vol = compute_basin_volume(N, K, trials=trials_per_N)
+        # Scale K_c with N for fair comparison across different N
+        K_c_N = base_K_c * (10.0 / N)  # K_c decreases with N
+        K_scaled = 1.5 * K_c_N
+
+        vol = compute_basin_volume(N, K_scaled, trials=trials_per_N)
         volumes.append(vol)
-        print(f"  N={N}: V = {vol:.3f}")
+        print(f"  N={N}: V = {vol:.3f} (K={K_scaled:.4f}, K_c={K_c_N:.4f})")
 
     # V9.1 predicts: V ~ 1 - exp(-α√N)
     # Taking log: log(1-V) ~ -α√N
