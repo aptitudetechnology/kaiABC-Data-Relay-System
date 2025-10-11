@@ -1370,6 +1370,22 @@ def derive_scaling_laws_from_harmonic_analysis(
        - Why V ~ N^{-1/2} from harmonic constraints
        - Frequency dispersion effects (σ_ω)
     """
+    # PLACEHOLDER IMPLEMENTATION
+    # This should derive scaling from harmonic analysis first principles
+
+    harmonic_scaling = None  # TODO: Derive from Fourier analysis
+    empirical_fallback = 0.5  # 1/√N scaling observed empirically
+
+    return harmonic_scaling, {
+        'empirical_fallback': empirical_fallback,
+        'fourier_connection': 'MISSING',
+        'harmonic_derivation': 'UNESTABLISHED',
+        'uncertainty_principles': 'UNAPPLIED'
+    }
+
+
+def main_demonstrate_missing_derivations():
+    """
     Demonstrate the Four Missing Mathematical Derivations
     ====================================================
 
