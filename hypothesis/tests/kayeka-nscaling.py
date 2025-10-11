@@ -250,7 +250,7 @@ def test_scaling_laws_validation_improved(N_range: List[int] = None, K_range: Li
         volumes = []
         for K in K_range:
             # Enhanced basin volume computation with error estimation
-            volume_data = _compute_basin_volume_with_uncertainty(N, K, trials=300)
+            volume_data = _compute_basin_volume_with_uncertainty(N, K, trials=1000)
             volumes.append({
                 'K': K,
                 'volume': volume_data['mean'],
@@ -843,266 +843,115 @@ def _interpret_improved_results(overall_analysis: Dict[str, Any]) -> str:
         return 'INCONCLUSIVE'
 
 def _compute_basin_volume(N: int, K: float, trials: int) -> float:
-    """Compute basin volume estimate"""
-    # Placeholder - would implement actual basin volume computation
-    # This would call the main basin volume testing functions
-    base_volume = 0.5 + 0.3 * (K - 1.0) / K
-    noise = np.random.normal(0, 0.05)
-    n_scaling = 1.0 / np.sqrt(N)  # Kakeya-inspired scaling
-    return max(0, min(1, base_volume * n_scaling + noise))
-
-
-def _compute_basin_volume_single_point(theta_0: np.ndarray, K: float, max_time: float = 50.0) -> float:
     """
-    Compute basin volume for a single initial condition (0 or 1 for sync/no sync).
+    Compute basin volume using Monte Carlo simulation with SMP support.
 
-    Parameters:
-    -----------
-    theta_0 : np.ndarray
-        Initial phase configuration
-    K : float
-        Coupling strength
-    max_time : float
-        Maximum integration time
+    This function performs actual Kuramoto model simulations to estimate
+    the fraction of initial conditions that lead to synchronization.
+
+    Args:
+        N: Number of oscillators
+        K: Coupling strength
+        trials: Number of Monte Carlo trials
 
     Returns:
-    --------
-    float: 1.0 if synchronizes, 0.0 if not
+        Fraction of trials that synchronized (basin volume estimate)
+    """
+    # Use multiprocessing for SMP support
+    num_processes = min(mp.cpu_count() - 1, trials // 10)  # Don't create too many processes
+    num_processes = max(1, num_processes)  # At least 1 process
+
+    # Split trials across processes
+    trials_per_process = trials // num_processes
+    remainder = trials % num_processes
+
+    # Create process arguments
+    process_args = []
+    for i in range(num_processes):
+        process_trials = trials_per_process + (1 if i < remainder else 0)
+        process_args.append((N, K, process_trials))
+
+    # Run simulations in parallel
+    if TQDM_AVAILABLE:
+        with mp.Pool(processes=num_processes) as pool:
+            results = list(tqdm(
+                pool.imap(_run_basin_volume_trials, process_args),
+                total=num_processes,
+                desc=f"Computing basin volume (N={N}, K={K:.2f})"
+            ))
+    else:
+        with mp.Pool(processes=num_processes) as pool:
+            results = pool.map(_run_basin_volume_trials, process_args)
+
+    # Combine results
+    total_converged = sum(results)
+    total_trials = sum(process_args[i][2] for i in range(num_processes))
+
+    return total_converged / total_trials if total_trials > 0 else 0.0
+
+
+def _run_basin_volume_trials(args: Tuple[int, float, int]) -> int:
+    """
+    Run basin volume trials for a single process.
+
+    Args:
+        args: (N, K, num_trials)
+
+    Returns:
+        Number of trials that synchronized
+    """
+    N, K, num_trials = args
+    converged = 0
+
+    for _ in range(num_trials):
+        # Random initial conditions (uniform on circle)
+        theta_0 = np.random.uniform(0, 2*np.pi, N)
+
+        # Run Kuramoto simulation
+        if _simulate_kuramoto_synchronization(theta_0, K):
+            converged += 1
+
+    return converged
+
+
+def _simulate_kuramoto_synchronization(theta_0: np.ndarray, K: float,
+                                      max_time: float = 100.0,
+                                      dt: float = 0.01,
+                                      sync_threshold: float = 0.9) -> bool:
+    """
+    Simulate Kuramoto model and check for synchronization.
+
+    Args:
+        theta_0: Initial phases
+        K: Coupling strength
+        max_time: Maximum simulation time
+        dt: Time step
+        sync_threshold: Order parameter threshold for synchronization
+
+    Returns:
+        True if system synchronized within max_time
     """
     N = len(theta_0)
-    dt = 0.1
+    theta = theta_0.copy()
     t = 0.0
 
-    # Simple Euler integration of Kuramoto model
-    theta = theta_0.copy()
-
     while t < max_time:
-        # Compute coupling term
-        coupling = np.zeros(N)
-        for i in range(N):
-            coupling[i] = np.sum(np.sin(theta - theta[i])) / N
+        # Compute coupling terms
+        sin_diffs = np.sin(theta[:, np.newaxis] - theta)
+        coupling = K / N * np.sum(sin_diffs, axis=1)
 
-        # Update phases
-        theta += dt * (0.0 + K * coupling)  # ω_i = 0 for all oscillators
+        # Update phases (all oscillators have ω_i = 0 for simplicity)
+        theta += dt * coupling
 
-        # Check for synchronization (order parameter > 0.9)
+        # Check synchronization (order parameter)
         order_param = np.abs(np.sum(np.exp(1j * theta)) / N)
-        if order_param > 0.9:
-            return 1.0  # Synchronized
+
+        if order_param > sync_threshold:
+            return True
 
         t += dt
 
-    return 0.0  # Did not synchronize within time limit
-
-def _compute_basin_volume_with_uncertainty(N: int, K: float, trials: int) -> Dict[str, float]:
-    """Compute basin volume with uncertainty quantification"""
-    # Placeholder - implement bootstrap uncertainty estimation
-
-    # Generate multiple volume estimates
-    volumes = []
-    for _ in range(max(10, trials//30)):  # Bootstrap samples
-        vol = _compute_basin_volume(N, K, trials//10)
-        volumes.append(vol)
-
-    volumes = np.array(volumes)
-    mean_vol = np.mean(volumes)
-    std_vol = np.std(volumes)
-
-    return {
-        'mean': mean_vol,
-        'std': std_vol,
-        'ci_95': [mean_vol - 1.96*std_vol, mean_vol + 1.96*std_vol],
-        'bootstrap_samples': len(volumes)
-    }
-
-
-def _comprehensive_scaling_analysis_improved(volumes: List[Dict], N: int) -> Dict[str, Any]:
-    """Comprehensive scaling analysis with multiple hypotheses and statistical validation"""
-    # Placeholder - implement comprehensive scaling analysis
-
-    # Test multiple scaling models
-    models = _fit_multiple_scaling_models(volumes, N)
-
-    # Bayesian model comparison
-    bayesian_comparison = _bayesian_model_comparison(models)
-
-    # Best model selection
-    best_model = models[bayesian_comparison['best_model_idx']]
-
-    return {
-        'models': models,
-        'bayesian_comparison': bayesian_comparison,
-        'best_model': best_model,
-        'kakeya_bayes_factor': bayesian_comparison['kakeya_vs_null'],
-        'model_uncertainty': bayesian_comparison['model_uncertainty'],
-        'goodness_of_fit': best_model['r_squared'],
-        'confidence_intervals': best_model['confidence_interval']
-    }
-
-
-def _fit_multiple_scaling_models(volumes: List[Dict], N: int) -> List[Dict]:
-    """Fit multiple scaling models to the data"""
-    # Placeholder - implement multiple model fitting
-
-    models = []
-
-    # Model 1: 1/N scaling (standard finite-size)
-    model_1n = _fit_power_law_model(volumes, exponent=-1.0)
-    models.append({
-        'name': '1/N_scaling',
-        'exponent': -1.0,
-        'fitted_params': model_1n,
-        'r_squared': model_1n['r_squared'],
-        'confidence_interval': model_1n['ci']
-    })
-
-    # Model 2: 1/√N scaling (Kakeya-inspired)
-    model_sqrtn = _fit_power_law_model(volumes, exponent=-0.5)
-    models.append({
-        'name': '1/sqrtN_scaling',
-        'exponent': -0.5,
-        'fitted_params': model_sqrtn,
-        'r_squared': model_sqrtn['r_squared'],
-        'confidence_interval': model_sqrtn['ci']
-    })
-
-    # Model 3: Logarithmic scaling
-    model_log = _fit_logarithmic_model(volumes, N)
-    models.append({
-        'name': 'logarithmic_scaling',
-        'exponent': 'log',
-        'fitted_params': model_log,
-        'r_squared': model_log['r_squared'],
-        'confidence_interval': model_log['ci']
-    })
-
-    # Model 4: Constant (null hypothesis)
-    model_const = _fit_constant_model(volumes)
-    models.append({
-        'name': 'constant',
-        'exponent': 0.0,
-        'fitted_params': model_const,
-        'r_squared': model_const['r_squared'],
-        'confidence_interval': model_const['ci']
-    })
-
-    return models
-
-
-def _fit_power_law_model(volumes: List[Dict], exponent: float) -> Dict[str, Any]:
-    """Fit power law model with given exponent"""
-    # Placeholder - implement power law fitting
-    k_values = np.array([v['K'] for v in volumes])
-    vol_values = np.array([v['volume'] for v in volumes])
-
-    # Simple fit (would use proper maximum likelihood in real implementation)
-    predicted = k_values ** exponent
-    r_squared = 1.0 - np.var(vol_values - predicted) / np.var(vol_values)
-
-    return {
-        'amplitude': np.mean(vol_values / predicted),
-        'r_squared': max(0, r_squared),
-        'ci': [exponent - 0.1, exponent + 0.1]  # Placeholder confidence interval
-    }
-
-
-def _fit_logarithmic_model(volumes: List[Dict], N: int) -> Dict[str, Any]:
-    """Fit logarithmic scaling model"""
-    # Placeholder - implement logarithmic fitting
-    k_values = np.array([v['K'] for v in volumes])
-    vol_values = np.array([v['volume'] for v in volumes])
-
-    # Logarithmic fit
-    log_k = np.log(k_values)
-    predicted = np.log(N) * log_k  # Simplified model
-    r_squared = 1.0 - np.var(vol_values - predicted) / np.var(vol_values)
-
-    return {
-        'coefficient': 0.1,  # Placeholder
-        'r_squared': max(0, r_squared),
-        'ci': [-0.2, 0.2]
-    }
-
-
-def _fit_constant_model(volumes: List[Dict]) -> Dict[str, Any]:
-    """Fit constant model (null hypothesis)"""
-    vol_values = np.array([v['volume'] for v in volumes])
-    constant = np.mean(vol_values)
-
-    r_squared = 0.0  # Constant model typically poor fit
-
-    return {
-        'constant': constant,
-        'r_squared': r_squared,
-        'ci': [constant - 0.1, constant + 0.1]
-    }
-
-
-def _bayesian_model_comparison(models: List[Dict]) -> Dict[str, Any]:
-    """Bayesian model comparison for scaling models"""
-    # Placeholder - implement Bayesian model comparison
-
-    # Simple BIC-based comparison (would use full Bayesian analysis)
-    bic_scores = []
-    for model in models:
-        # Simplified BIC calculation
-        k = 2  # Number of parameters
-        n = 10  # Number of data points
-        bic = n * np.log(1 - model['r_squared']) + k * np.log(n)
-        bic_scores.append(bic)
-
-    bic_scores = np.array(bic_scores)
-    best_idx = np.argmin(bic_scores)
-
-    # Bayes factors (simplified)
-    kakeya_idx = 1  # 1/√N model
-    null_idx = 3    # Constant model
-    kakeya_vs_null = np.exp((bic_scores[null_idx] - bic_scores[kakeya_idx]) / 2)
-
-    return {
-        'bic_scores': bic_scores,
-        'best_model_idx': best_idx,
-        'kakeya_vs_null': kakeya_vs_null,
-        'model_uncertainty': 1.0 / len(models),  # Equal uncertainty
-        'evidence_strength': 'Strong' if kakeya_vs_null > 10 else 'Weak' 
-    }
-
-
-def _validate_overall_scaling_patterns(scaling_tests: List[Dict]) -> Dict[str, Any]:
-    """Validate overall scaling patterns across different N"""
-    # Placeholder - implement overall validation
-
-    exponents = [t['best_fit_exponent'] for t in scaling_tests if isinstance(t['best_fit_exponent'], (int, float))]
-    kakeya_matches = [t['kakeya_match'] for t in scaling_tests]
-
-    # Statistical tests
-    mean_exponent = np.mean(exponents) if exponents else 0
-    exponent_consistency = 1.0 - np.std(exponents) if exponents else 0
-    kakeya_consensus = np.mean(kakeya_matches)
-
-    return {
-        'mean_exponent': mean_exponent,
-        'exponent_consistency': exponent_consistency,
-        'kakeya_evidence_strength': 'Strong' if kakeya_consensus > 0.7 else 'Moderate' if kakeya_consensus > 0.5 else 'Weak',
-        'confidence_level': 0.95 if exponent_consistency > 0.8 else 0.80,
-        'cross_validation_score': 0.85  # Placeholder
-    }
-
-
-def _interpret_scaling_results_improved(overall_scaling: Dict[str, Any]) -> str:
-    """Interpret the improved scaling analysis results"""
-    evidence_strength = overall_scaling['kakeya_evidence_strength']
-    consistency = overall_scaling['exponent_consistency']
-    confidence = overall_scaling['confidence_level']
-
-    if evidence_strength == 'Strong' and consistency > 0.8 and confidence > 0.9:
-        return 'SUPPORTS'
-    elif evidence_strength in ['Strong', 'Moderate'] and consistency > 0.6:
-        return 'MODERATE_SUPPORT'
-    elif evidence_strength == 'Weak' or consistency < 0.4:
-        return 'WEAK'
-    else:
-        return 'MIXED'
+    return False
 
 
 def run_all_open_question_tests(verbose: bool = True) -> Dict[str, Any]:
@@ -1554,7 +1403,3 @@ def main_demonstrate_missing_derivations():
     print()
     print("The empirical success suggests a profound mathematical connection,")
     print("but the theoretical foundation remains conjectural and unproven.")
-
-
-if __name__ == "__main__":
-    main_demonstrate_missing_derivations()
