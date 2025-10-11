@@ -3,7 +3,14 @@
 Theoretical Framework Testing for √N Scaling in Kuramoto Basins
 ===============================================================
 
-This script tests multiple competing theories to explain why √N scaling
+This script tests multiple c        # Check for synchronization (order parameter > 0.3)
+        r = np.abs(np.mean(np.exp(1j * theta)))
+        if r > 0.3:
+            return theta, True
+
+    # Final synchronization check
+    r = np.abs(np.mean(np.exp(1j * theta)))
+    synchronized = r > 0.3 theories to explain why √N scaling
 works empirically in Kuramoto oscillator basin volumes.
 
 Based on v9-1nscale.md research plan.
@@ -614,8 +621,8 @@ def test_basin_volume_scaling_directly(N_values: List[int], trials_per_N: int = 
     """
     print("Testing Basin Volume √N Scaling Directly...")
 
-    K_c = 2.0  # Approximate critical coupling for omega_std=0.1
-    K = 1.5 * K_c  # Transition regime (where √N appears in V9.1)
+    K_c = 0.5  # Approximate critical coupling for omega_std=0.1
+    K = 1.1 * K_c  # Slightly above critical for transition regime
 
     volumes = []
     for N in N_values:
