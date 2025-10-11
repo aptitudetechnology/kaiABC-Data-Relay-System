@@ -157,8 +157,8 @@ def runge_kutta_step(theta: np.ndarray, omega: np.ndarray, K: float, dt: float) 
     return theta + (dt / 6) * (k1 + 2*k2 + 2*k3 + k4)
 
 
-def simulate_kuramoto(N: int, K: float, t_max: float = 100.0, dt: float = 0.01,
-                     omega_std: float = 0.1) -> Tuple[np.ndarray, bool]:
+def simulate_kuramoto(N: int, K: float, t_max: float = 500.0, dt: float = 0.01,
+                     omega_std: float = 0.01) -> Tuple[np.ndarray, bool]:
     """
     Simulate Kuramoto model from random initial conditions.
 
