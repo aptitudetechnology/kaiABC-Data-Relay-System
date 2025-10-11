@@ -1218,6 +1218,7 @@ def _compute_basin_volume(N: int, K: float, trials: int) -> float:
 def _run_basin_volume_trials(args: Tuple[int, float, int]) -> int:
     """
     Run basin volume trials for a single process.
+    Initializes GPU context for multiprocessing compatibility.
 
     Args:
         args: (N, K, num_trials)
@@ -1225,6 +1226,17 @@ def _run_basin_volume_trials(args: Tuple[int, float, int]) -> int:
     Returns:
         Number of trials that synchronized
     """
+    # Initialize GPU context in child process (required for multiprocessing)
+    global GPU_AVAILABLE, cp
+    if GPU_AVAILABLE:
+        try:
+            import cupy as cp
+            cupy.cuda.Device(0).use()  # Set device for this process
+        except Exception as e:
+            print(f"Warning: GPU initialization failed in child process: {e}")
+            GPU_AVAILABLE = False
+            cp = None
+
     N, K, num_trials = args
 
     converged = 0
@@ -1261,7 +1273,17 @@ def _simulate_kuramoto_synchronization(theta_0: np.ndarray, K: float,
     N = len(theta_0)
 
     # Use GPU arrays if available and beneficial (N > 50 for GPU overhead to be worth it)
-    if GPU_AVAILABLE and N > 50:
+    # Check GPU availability locally (important for multiprocessing)
+    gpu_available_local = False
+    try:
+        if GPU_AVAILABLE and N > 50:
+            # Test if GPU is actually accessible in this process
+            import cupy as cp
+            gpu_available_local = cp.cuda.runtime.getDeviceCount() > 0
+    except:
+        gpu_available_local = False
+
+    if gpu_available_local:
         theta = cp.asarray(theta_0.copy())
         sin_func = cp.sin
         sum_func = cp.sum
@@ -1276,14 +1298,20 @@ def _simulate_kuramoto_synchronization(theta_0: np.ndarray, K: float,
 
     while t < max_time:
         # Compute coupling terms - this is the main GPU-accelerated operation
-        sin_diffs = sin_func(theta[:, cp.newaxis] - theta) if GPU_AVAILABLE and N > 50 else sin_func(theta[:, np.newaxis] - theta)
+        if gpu_available_local:
+            sin_diffs = sin_func(theta[:, cp.newaxis] - theta)
+        else:
+            sin_diffs = sin_func(theta[:, np.newaxis] - theta)
         coupling = K / N * sum_func(sin_diffs, axis=1)
 
         # Update phases (all oscillators have ω_i = 0 for simplicity)
         theta += dt * coupling
 
         # Check synchronization (order parameter)
-        order_param = abs_func(cp.sum(cp.exp(1j * theta)) / N) if GPU_AVAILABLE and N > 50 else abs_func(np.sum(np.exp(1j * theta)) / N)
+        if gpu_available_local:
+            order_param = abs_func(cp.sum(cp.exp(1j * theta)) / N)
+        else:
+            order_param = abs_func(np.sum(np.exp(1j * theta)) / N)
 
         if order_param > sync_threshold:
             return True
