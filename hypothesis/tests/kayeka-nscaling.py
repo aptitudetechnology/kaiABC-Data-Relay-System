@@ -429,6 +429,31 @@ def _compute_biological_basin_volume(K: float, freq_dispersion: float, trials: i
     return max(0.01, min(0.99, biological_volume))  # Constrain to valid range
 
 
+def _compute_basin_volume_with_uncertainty(N: int, K: float, trials: int) -> Dict[str, float]:
+    """Compute basin volume with uncertainty quantification using bootstrap"""
+    # Generate multiple volume estimates for uncertainty quantification
+    bootstrap_samples = max(5, trials // 200)  # At least 5 bootstrap samples
+    volumes = []
+
+    for _ in range(bootstrap_samples):
+        # Use smaller trial count per bootstrap sample to keep total computation reasonable
+        sample_trials = max(50, trials // bootstrap_samples)
+        volume = _compute_basin_volume(N, K, sample_trials)
+        volumes.append(volume)
+
+    volumes = np.array(volumes)
+    mean_vol = np.mean(volumes)
+    std_vol = np.std(volumes)
+
+    return {
+        'mean': mean_vol,
+        'std': std_vol,
+        'ci_95': [mean_vol - 1.96*std_vol, mean_vol + 1.96*std_vol],
+        'bootstrap_samples': len(volumes),
+        'relative_uncertainty': std_vol / mean_vol if mean_vol > 0 else 1.0
+    }
+
+
 def _compute_biological_uncertainty_stats(estimates: List[float]) -> Dict[str, float]:
     """Compute uncertainty statistics for biological basin estimates"""
     estimates = np.array(estimates)
@@ -900,7 +925,8 @@ def _run_basin_volume_trials(args: Tuple[int, float, int]) -> int:
     Returns:
         Number of trials that synchronized
     """
-    N, K, num_trials = args
+    N, K, num_trials = args, 0
+
     converged = 0
 
     for _ in range(num_trials):
@@ -952,6 +978,11 @@ def _simulate_kuramoto_synchronization(theta_0: np.ndarray, K: float,
         t += dt
 
     return False
+
+
+def _compute_basin_volume_single_point(theta_0: np.ndarray, K: float) -> float:
+    """Compute basin volume for a single initial condition"""
+    return 1.0 if _simulate_kuramoto_synchronization(theta_0, K) else 0.0
 
 
 def run_all_open_question_tests(verbose: bool = True) -> Dict[str, Any]:
