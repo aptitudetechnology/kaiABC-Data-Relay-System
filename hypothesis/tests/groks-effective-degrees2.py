@@ -1609,6 +1609,590 @@ def test_fractal_dimension_hypothesis(N_values: List[int] = None, trials_per_N: 
     }
 
 
+def run_alternative_hypotheses_test(N_values: List[int] = None, trials_per_N: int = 100) -> Dict[str, Any]:
+    """
+    Test suite for alternative hypotheses to explain V ~ exp(-√N) basin scaling.
+
+    Tests multiple competing explanations when Complexity Barrier Hypothesis shows
+    only partial support.
+    """
+    if N_values is None:
+        N_values = [10, 20, 30, 50]
+
+    print("ALTERNATIVE HYPOTHESES TEST SUITE")
+    print("=" * 70)
+    print("Testing competing explanations for V ~ exp(-√N) basin scaling")
+    print(f"N values: {N_values}")
+    print(f"Trials per N: {trials_per_N}")
+    print()
+
+    results = {}
+
+    # Hypothesis 1: Critical Slowing Down
+    print("\n" + "="*50)
+    print("HYPOTHESIS 1: CRITICAL SLOWING DOWN")
+    print("="*50)
+    print("Near criticality, relaxation times τ ~ N^z create effective barriers")
+    print("Prediction: Basin volume V ~ exp(-t_barrier / τ(N)) with τ ~ N^z")
+
+    results['critical_slowing'] = test_critical_slowing_hypothesis(N_values, trials_per_N)
+
+    # Hypothesis 2: Phase Space Curvature
+    print("\n" + "="*50)
+    print("HYPOTHESIS 2: PHASE SPACE CURVATURE")
+    print("="*50)
+    print("Phase space geometry creates barriers through Riemannian curvature")
+    print("Prediction: Energy barriers scale with phase space curvature κ ~ 1/√N")
+
+    results['phase_space_curvature'] = test_phase_space_curvature_hypothesis(N_values, trials_per_N)
+
+    # Hypothesis 3: Collective Mode Coupling
+    print("\n" + "="*50)
+    print("HYPOTHESIS 3: COLLECTIVE MODE COUPLING")
+    print("="*50)
+    print("Emergent collective modes create effective barriers through mode locking")
+    print("Prediction: Critical modes scale as √N, creating barriers ~ √N")
+
+    results['collective_modes'] = test_collective_mode_hypothesis(N_values, trials_per_N)
+
+    # Hypothesis 4: Finite Size Effects
+    print("\n" + "="*50)
+    print("HYPOTHESIS 4: FINITE SIZE EFFECTS")
+    print("="*50)
+    print("Observed scaling is a finite-N artifact that vanishes in thermodynamic limit")
+    print("Prediction: Scaling weakens or disappears for larger N")
+
+    results['finite_size'] = test_finite_size_hypothesis(N_values, trials_per_N)
+
+    # Hypothesis 5: Information Bottleneck
+    print("\n" + "="*50)
+    print("HYPOTHESIS 5: INFORMATION BOTTLENECK")
+    print("="*50)
+    print("Basin boundaries represent information processing bottlenecks")
+    print("Prediction: Mutual information I ~ √N creates barriers ~ √N")
+
+    results['information_bottleneck'] = test_information_bottleneck_hypothesis(N_values, trials_per_N)
+
+    # Summary
+    print("\n" + "="*70)
+    print("ALTERNATIVE HYPOTHESES SUMMARY")
+    print("="*70)
+
+    supported_hypotheses = []
+    for name, result in results.items():
+        status = "✅" if result['verdict'].startswith('✅') else "⚠️" if result['verdict'].startswith('⚠️') else "❌"
+        theory_name = result['theory'].split('(')[0].strip()
+        print(f"{status} {theory_name}: {result.get('measured_exponent', 'N/A')}")
+
+        if result['verdict'].startswith('✅'):
+            supported_hypotheses.append(name)
+
+    if supported_hypotheses:
+        print(f"\n🎯 {len(supported_hypotheses)} ALTERNATIVE HYPOTHESES SUPPORTED!")
+        print("Multiple explanations possible for the basin scaling.")
+    else:
+        print("\n❌ NO ALTERNATIVE HYPOTHESES SUPPORTED")
+        print("Complexity Barrier Hypothesis remains the leading explanation.")
+
+    return results
+
+
+def test_critical_slowing_hypothesis(N_values: List[int] = None, trials_per_N: int = 100) -> Dict[str, Any]:
+    """
+    Hypothesis 1: Critical slowing down creates effective barriers through time.
+
+    Near criticality, relaxation times diverge as τ ~ N^z, creating effective
+    barriers when measurement time is fixed. Predicts V ~ exp(-t_fixed / τ(N)).
+    """
+    if N_values is None:
+        N_values = [10, 20, 30, 50]
+
+    print("Testing critical slowing down hypothesis...")
+    print("Measuring relaxation times near criticality")
+
+    relaxation_times = []
+    relaxation_errors = []
+
+    for N in N_values:
+        # Estimate K_c for this N
+        K_c_est = 0.025 * (10.0 / N)**0.5  # Rough estimate
+        K_test = 0.95 * K_c_est  # Slightly below criticality
+
+        times = []
+        for trial in range(trials_per_N):
+            # Start from desynchronized state
+            theta = 2 * np.pi * np.random.rand(N)
+            omega = np.random.normal(0, 0.01, N)
+
+            # Measure time to reach r > 0.8 (near synchronization)
+            t = 0
+            dt = 0.01
+            max_time = 100.0  # Maximum simulation time
+
+            while t < max_time:
+                theta = runge_kutta_step(theta, omega, K_test, dt)
+                r = np.abs(np.mean(np.exp(1j * theta)))
+
+                if r > 0.8:
+                    times.append(t)
+                    break
+                t += dt
+            else:
+                times.append(max_time)  # Didn't synchronize
+
+        if times:
+            avg_time = np.mean(times)
+            relaxation_times.append(avg_time)
+            relaxation_errors.append(np.std(times))
+            print(f"N={N}: τ = {avg_time:.2f} ± {np.std(times):.2f}")
+        else:
+            relaxation_times.append(np.nan)
+            relaxation_errors.append(np.nan)
+
+    # Fit τ(N) ~ N^z
+    valid_indices = [i for i, t in enumerate(relaxation_times) if np.isfinite(t)]
+    if len(valid_indices) >= 3:
+        N_fit = np.array([N_values[i] for i in valid_indices])
+        tau_fit = np.array([relaxation_times[i] for i in valid_indices])
+
+        fit_result = fit_power_law(N_fit, tau_fit, n_bootstrap=200)
+
+        measured_exponent = fit_result['exponent']
+        measured_error = fit_result['error']
+        r_squared = fit_result['r_squared']
+
+        print(f"Relaxation time scaling: τ(N) ~ N^{measured_exponent:.3f} ± {measured_error:.3f}")
+        print(f"R² = {r_squared:.3f}")
+
+        # For V ~ exp(-√N), we need τ ~ N^{1/2} (since t_barrier ~ √N)
+        theory_exponent = 0.5
+        exponent_diff = abs(measured_exponent - theory_exponent)
+        exponent_sigma = exponent_diff / measured_error if measured_error > 0 else float('inf')
+
+        if exponent_sigma < 2.0 and r_squared > 0.7:
+            verdict = f"✅ SUPPORTED: Critical slowing explains scaling (σ = {exponent_sigma:.1f})"
+        elif exponent_sigma < 3.0 and r_squared > 0.5:
+            verdict = f"⚠️ PARTIALLY: Suggestive evidence (σ = {exponent_sigma:.1f})"
+        else:
+            verdict = f"❌ FALSIFIED: No critical slowing scaling (σ = {exponent_sigma:.1f})"
+    else:
+        measured_exponent = np.nan
+        measured_error = np.nan
+        r_squared = 0.0
+        verdict = "❌ INSUFFICIENT DATA: Need more relaxation time measurements"
+
+    print(f"Verdict: {verdict}")
+
+    return {
+        'theory': 'Critical Slowing Down (τ ~ N^{1/2})',
+        'measured_exponent': measured_exponent,
+        'measured_error': measured_error,
+        'r_squared': r_squared,
+        'verdict': verdict,
+        'N_values': N_values,
+        'relaxation_times': relaxation_times,
+        'relaxation_errors': relaxation_errors
+    }
+
+
+def test_phase_space_curvature_hypothesis(N_values: List[int] = None, trials_per_N: int = 100) -> Dict[str, Any]:
+    """
+    Hypothesis 2: Phase space curvature creates barriers.
+
+    The Riemannian geometry of phase space creates effective barriers through
+    curvature κ. Predicts barriers scale with local curvature κ ~ 1/√N.
+    """
+    if N_values is None:
+        N_values = [10, 20, 30, 50]
+
+    print("Testing phase space curvature hypothesis...")
+    print("Measuring local curvature near basin boundaries")
+
+    curvatures = []
+    curvature_errors = []
+
+    for N in N_values:
+        K_test = 0.02  # Near criticality
+
+        trial_curvatures = []
+        for trial in range(trials_per_N):
+            # Sample points near basin boundary (r ≈ 0.5)
+            theta = 2 * np.pi * np.random.rand(N)
+            omega = np.random.normal(0, 0.01, N)
+
+            # Evolve to near boundary
+            for _ in range(100):
+                theta = runge_kutta_step(theta, omega, K_test, 0.01)
+                r = np.abs(np.mean(np.exp(1j * theta)))
+                if 0.4 < r < 0.6:
+                    break
+
+            # Estimate local curvature using finite differences
+            # Curvature κ ≈ |d²r/dθ²| / (1 + (dr/dθ)²)^{3/2}
+            eps = 0.01
+            theta_plus = theta + eps * np.random.normal(0, 1, N)
+            theta_minus = theta - eps * np.random.normal(0, 1, N)
+
+            # Evolve perturbed states
+            for _ in range(20):
+                theta_plus = runge_kutta_step(theta_plus, omega, K_test, 0.01)
+                theta_minus = runge_kutta_step(theta_minus, omega, K_test, 0.01)
+
+            r_center = np.abs(np.mean(np.exp(1j * theta)))
+            r_plus = np.abs(np.mean(np.exp(1j * theta_plus)))
+            r_minus = np.abs(np.mean(np.exp(1j * theta_minus)))
+
+            # Second derivative approximation
+            curvature = abs(r_plus - 2*r_center + r_minus) / (eps**2)
+            if curvature > 0:
+                trial_curvatures.append(curvature)
+
+        if trial_curvatures:
+            avg_curvature = np.mean(trial_curvatures)
+            curvatures.append(avg_curvature)
+            curvature_errors.append(np.std(trial_curvatures))
+            print(f"N={N}: κ = {avg_curvature:.4f} ± {np.std(trial_curvatures):.4f}")
+        else:
+            curvatures.append(np.nan)
+            curvature_errors.append(np.nan)
+
+    # Fit κ(N) ~ N^α
+    valid_indices = [i for i, k in enumerate(curvatures) if np.isfinite(k)]
+    if len(valid_indices) >= 3:
+        N_fit = np.array([N_values[i] for i in valid_indices])
+        kappa_fit = np.array([curvatures[i] for i in valid_indices])
+
+        fit_result = fit_power_law(N_fit, kappa_fit, n_bootstrap=200)
+
+        measured_exponent = fit_result['exponent']
+        measured_error = fit_result['error']
+        r_squared = fit_result['r_squared']
+
+        print(f"Curvature scaling: κ(N) ~ N^{measured_exponent:.3f} ± {measured_error:.3f}")
+        print(f"R² = {r_squared:.3f}")
+
+        # For V ~ exp(-√N), we need κ ~ N^{-1/2} (curvature decreases with N)
+        theory_exponent = -0.5
+        exponent_diff = abs(measured_exponent - theory_exponent)
+        exponent_sigma = exponent_diff / measured_error if measured_error > 0 else float('inf')
+
+        if exponent_sigma < 2.0 and r_squared > 0.7:
+            verdict = f"✅ SUPPORTED: Phase space curvature explains scaling (σ = {exponent_sigma:.1f})"
+        elif exponent_sigma < 3.0 and r_squared > 0.5:
+            verdict = f"⚠️ PARTIALLY: Suggestive curvature effects (σ = {exponent_sigma:.1f})"
+        else:
+            verdict = f"❌ FALSIFIED: No curvature scaling (σ = {exponent_sigma:.1f})"
+    else:
+        measured_exponent = np.nan
+        measured_error = np.nan
+        r_squared = 0.0
+        verdict = "❌ INSUFFICIENT DATA: Need more curvature measurements"
+
+    print(f"Verdict: {verdict}")
+
+    return {
+        'theory': 'Phase Space Curvature (κ ~ N^{-1/2})',
+        'measured_exponent': measured_exponent,
+        'measured_error': measured_error,
+        'r_squared': r_squared,
+        'verdict': verdict,
+        'N_values': N_values,
+        'curvatures': curvatures,
+        'curvature_errors': curvature_errors
+    }
+
+
+def test_collective_mode_hypothesis(N_values: List[int] = None, trials_per_N: int = 100) -> Dict[str, Any]:
+    """
+    Hypothesis 3: Collective mode coupling creates barriers.
+
+    Emergent collective modes in large N systems create effective barriers
+    through mode locking. Predicts number of critical modes ~ √N.
+    """
+    if N_values is None:
+        N_values = [10, 20, 30, 50]
+
+    print("Testing collective mode coupling hypothesis...")
+    print("Analyzing emergent collective modes near criticality")
+
+    mode_counts = []
+    mode_errors = []
+
+    for N in N_values:
+        K_test = 0.02  # Near criticality
+
+        trial_modes = []
+        for trial in range(trials_per_N):
+            # Generate trajectory and analyze modes
+            theta = 2 * np.pi * np.random.rand(N)
+            omega = np.random.normal(0, 0.01, N)
+
+            # Collect trajectory snapshots
+            snapshots = []
+            for _ in range(100):
+                theta = runge_kutta_step(theta, omega, K_test, 0.01)
+                snapshots.append(theta.copy())
+
+            snapshots = np.array(snapshots)
+
+            # PCA to find collective modes
+            # Center the data
+            snapshots_centered = snapshots - np.mean(snapshots, axis=0)
+
+            # Compute covariance and eigenvalues
+            cov_matrix = np.cov(snapshots_centered.T)
+            eigenvalues = np.linalg.eigvals(cov_matrix)
+
+            # Count modes with significant variance (above noise threshold)
+            noise_threshold = np.mean(eigenvalues) * 0.1
+            significant_modes = np.sum(eigenvalues > noise_threshold)
+
+            trial_modes.append(significant_modes)
+
+        if trial_modes:
+            avg_modes = np.mean(trial_modes)
+            mode_counts.append(avg_modes)
+            mode_errors.append(np.std(trial_modes))
+            print(f"N={N}: Modes = {avg_modes:.1f} ± {np.std(trial_modes):.1f}")
+        else:
+            mode_counts.append(np.nan)
+            mode_errors.append(np.nan)
+
+    # Fit M(N) ~ N^α where M is number of collective modes
+    valid_indices = [i for i, m in enumerate(mode_counts) if np.isfinite(m)]
+    if len(valid_indices) >= 3:
+        N_fit = np.array([N_values[i] for i in valid_indices])
+        modes_fit = np.array([mode_counts[i] for i in valid_indices])
+
+        fit_result = fit_power_law(N_fit, modes_fit, n_bootstrap=200)
+
+        measured_exponent = fit_result['exponent']
+        measured_error = fit_result['error']
+        r_squared = fit_result['r_squared']
+
+        print(f"Collective modes scaling: M(N) ~ N^{measured_exponent:.3f} ± {measured_error:.3f}")
+        print(f"R² = {r_squared:.3f}")
+
+        # For V ~ exp(-√N), we need M ~ N^{1/2} (more modes = more complexity)
+        theory_exponent = 0.5
+        exponent_diff = abs(measured_exponent - theory_exponent)
+        exponent_sigma = exponent_diff / measured_error if measured_error > 0 else float('inf')
+
+        if exponent_sigma < 2.0 and r_squared > 0.7:
+            verdict = f"✅ SUPPORTED: Collective modes explain scaling (σ = {exponent_sigma:.1f})"
+        elif exponent_sigma < 3.0 and r_squared > 0.5:
+            verdict = f"⚠️ PARTIALLY: Suggestive mode coupling (σ = {exponent_sigma:.1f})"
+        else:
+            verdict = f"❌ FALSIFIED: No collective mode scaling (σ = {exponent_sigma:.1f})"
+    else:
+        measured_exponent = np.nan
+        measured_error = np.nan
+        r_squared = 0.0
+        verdict = "❌ INSUFFICIENT DATA: Need more mode analysis"
+
+    print(f"Verdict: {verdict}")
+
+    return {
+        'theory': 'Collective Mode Coupling (M ~ N^{1/2})',
+        'measured_exponent': measured_exponent,
+        'measured_error': measured_error,
+        'r_squared': r_squared,
+        'verdict': verdict,
+        'N_values': N_values,
+        'mode_counts': mode_counts,
+        'mode_errors': mode_errors
+    }
+
+
+def test_finite_size_hypothesis(N_values: List[int] = None, trials_per_N: int = 100) -> Dict[str, Any]:
+    """
+    Hypothesis 4: Finite size effects cause the scaling.
+
+    The observed V ~ exp(-√N) is a finite-N artifact that weakens or disappears
+    in the thermodynamic limit. Tests if scaling changes with system size.
+    """
+    if N_values is None:
+        N_values = [10, 20, 30, 50]
+
+    print("Testing finite size effects hypothesis...")
+    print("Checking if scaling weakens for larger N")
+
+    # Use basin volume measurements from existing tests
+    # This is a meta-analysis of whether the scaling is stable
+    basin_volumes = []
+    volume_errors = []
+
+    for N in N_values:
+        # Estimate basin volume using Monte Carlo sampling
+        K_test = 0.02  # Near criticality
+
+        sync_count = 0
+        for trial in range(trials_per_N):
+            theta = 2 * np.pi * np.random.rand(N)
+            omega = np.random.normal(0, 0.01, N)
+
+            # Evolve and check final state
+            for _ in range(200):  # Long enough to reach steady state
+                theta = runge_kutta_step(theta, omega, K_test, 0.01)
+
+            r_final = np.abs(np.mean(np.exp(1j * theta)))
+            if r_final > 0.8:  # Synchronization threshold
+                sync_count += 1
+
+        volume_fraction = sync_count / trials_per_N
+        basin_volumes.append(volume_fraction)
+        volume_errors.append(np.sqrt(volume_fraction * (1 - volume_fraction) / trials_per_N))
+
+        print(f"N={N}: V/V_total = {volume_fraction:.3f} ± {volume_errors[-1]:.3f}")
+
+    # Test if the scaling is consistent (finite size effects would show deviations)
+    # Convert to the form ln(V) ~ -√N and check if slope changes with N range
+    valid_indices = [i for i, v in enumerate(basin_volumes) if v > 0]
+    if len(valid_indices) >= 3:
+        N_fit = np.array([N_values[i] for i in valid_indices])
+        ln_volumes = np.log(np.array([basin_volumes[i] for i in valid_indices]))
+
+        # Fit ln(V) = a - b√N
+        sqrt_N = np.sqrt(N_fit)
+        slope, intercept = np.polyfit(sqrt_N, ln_volumes, 1)
+        residuals = ln_volumes - (intercept + slope * sqrt_N)
+        r_squared = 1 - np.sum(residuals**2) / np.sum((ln_volumes - np.mean(ln_volumes))**2)
+
+        print(f"Basin volume scaling: ln(V) = {intercept:.3f} - {abs(slope):.3f}√N")
+        print(f"R² = {r_squared:.3f}")
+
+        # For finite size effects, we'd expect deviations or changing slope
+        # If scaling is stable, it's not a finite size effect
+        if r_squared > 0.9:
+            verdict = "❌ FALSIFIED: Scaling too stable for finite size effects"
+        elif r_squared > 0.7:
+            verdict = "⚠️ PARTIALLY: Possible finite size effects (moderate fit)"
+        else:
+            verdict = f"✅ SUPPORTED: Inconsistent scaling suggests finite size effects (R² = {r_squared:.2f})"
+    else:
+        verdict = "❌ INSUFFICIENT DATA: Need more basin volume measurements"
+
+    print(f"Verdict: {verdict}")
+
+    return {
+        'theory': 'Finite Size Effects (scaling weakens with N)',
+        'r_squared': r_squared if 'r_squared' in locals() else 0.0,
+        'verdict': verdict,
+        'N_values': N_values,
+        'basin_volumes': basin_volumes,
+        'volume_errors': volume_errors
+    }
+
+
+def test_information_bottleneck_hypothesis(N_values: List[int] = None, trials_per_N: int = 100) -> Dict[str, Any]:
+    """
+    Hypothesis 5: Information bottleneck creates barriers.
+
+    Basin boundaries represent information processing bottlenecks where
+    mutual information between past and future states is minimized.
+    Predicts bottleneck strength scales as √N.
+    """
+    if N_values is None:
+        N_values = [10, 20, 30, 50]
+
+    print("Testing information bottleneck hypothesis...")
+    print("Measuring mutual information across basin boundaries")
+
+    mutual_infos = []
+    info_errors = []
+
+    for N in N_values:
+        K_test = 0.02  # Near criticality
+
+        trial_infos = []
+        for trial in range(trials_per_N):
+            # Sample points near basin boundary
+            theta = 2 * np.pi * np.random.rand(N)
+            omega = np.random.normal(0, 0.01, N)
+
+            # Find boundary point
+            boundary_theta = None
+            for _ in range(100):
+                theta = runge_kutta_step(theta, omega, K_test, 0.01)
+                r = np.abs(np.mean(np.exp(1j * theta)))
+                if 0.4 < r < 0.6:
+                    boundary_theta = theta.copy()
+                    break
+
+            if boundary_theta is not None:
+                # Estimate mutual information I(X_past; X_future) at boundary
+                # Simplified: use correlation between phase clusters as proxy
+
+                # Divide into two halves for past/future proxy
+                half_N = N // 2
+                past_phases = boundary_theta[:half_N]
+                future_phases = boundary_theta[half_N:]
+
+                # Compute mutual information proxy using correlation
+                r_past = np.abs(np.mean(np.exp(1j * past_phases)))
+                r_future = np.abs(np.mean(np.exp(1j * future_phases)))
+                correlation = np.abs(np.mean(np.exp(1j * (past_phases - future_phases))))
+
+                # Information bottleneck: low correlation = high bottleneck
+                bottleneck_strength = 1 - correlation
+
+                trial_infos.append(bottleneck_strength)
+
+        if trial_infos:
+            avg_info = np.mean(trial_infos)
+            mutual_infos.append(avg_info)
+            info_errors.append(np.std(trial_infos))
+            print(f"N={N}: I_bottleneck = {avg_info:.3f} ± {np.std(trial_infos):.3f}")
+        else:
+            mutual_infos.append(np.nan)
+            info_errors.append(np.nan)
+
+    # Fit bottleneck strength I(N) ~ N^α
+    valid_indices = [i for i, i_val in enumerate(mutual_infos) if np.isfinite(i_val)]
+    if len(valid_indices) >= 3:
+        N_fit = np.array([N_values[i] for i in valid_indices])
+        info_fit = np.array([mutual_infos[i] for i in valid_indices])
+
+        fit_result = fit_power_law(N_fit, info_fit, n_bootstrap=200)
+
+        measured_exponent = fit_result['exponent']
+        measured_error = fit_result['error']
+        r_squared = fit_result['r_squared']
+
+        print(f"Information bottleneck scaling: I(N) ~ N^{measured_exponent:.3f} ± {measured_error:.3f}")
+        print(f"R² = {r_squared:.3f}")
+
+        # For V ~ exp(-√N), we need bottleneck ~ N^{1/2}
+        theory_exponent = 0.5
+        exponent_diff = abs(measured_exponent - theory_exponent)
+        exponent_sigma = exponent_diff / measured_error if measured_error > 0 else float('inf')
+
+        if exponent_sigma < 2.0 and r_squared > 0.7:
+            verdict = f"✅ SUPPORTED: Information bottleneck explains scaling (σ = {exponent_sigma:.1f})"
+        elif exponent_sigma < 3.0 and r_squared > 0.5:
+            verdict = f"⚠️ PARTIALLY: Suggestive bottleneck effects (σ = {exponent_sigma:.1f})"
+        else:
+            verdict = f"❌ FALSIFIED: No bottleneck scaling (σ = {exponent_sigma:.1f})"
+    else:
+        measured_exponent = np.nan
+        measured_error = np.nan
+        r_squared = 0.0
+        verdict = "❌ INSUFFICIENT DATA: Need more information measurements"
+
+    print(f"Verdict: {verdict}")
+
+    return {
+        'theory': 'Information Bottleneck (I ~ N^{1/2})',
+        'measured_exponent': measured_exponent,
+        'measured_error': measured_error,
+        'r_squared': r_squared,
+        'verdict': verdict,
+        'N_values': N_values,
+        'mutual_infos': mutual_infos,
+        'info_errors': info_errors
+    }
+
+
 def run_complexity_barrier_test_suite(N_values: List[int] = None, trials_per_N: int = 100) -> Dict[str, Any]:
     """
     Run all three Complexity Barrier Hypothesis tests (Updates 1, 2, 3).
