@@ -1644,7 +1644,7 @@ def run_alternative_hypotheses_test(N_values: List[int] = None, trials_per_N: in
     print("Phase space geometry creates barriers through Riemannian curvature")
     print("Prediction: Energy barriers scale with phase space curvature κ ~ 1/√N")
 
-    results['phase_space_curvature'] = test_phase_space_curvature_corrected(N_values, trials_per_N)
+    results['phase_space_curvature'] = test_phase_space_curvature_hypothesis(N_values, trials_per_N)
 
     # Hypothesis 3: Collective Mode Coupling
     print("\n" + "="*50)
@@ -1827,38 +1827,52 @@ def measure_sectional_curvature(N: int, K: float, n_samples: int = 100) -> float
     return np.mean(curvatures) if curvatures else np.nan
 
 
-def find_basin_boundary_point(N: int, K: float, omega: np.ndarray,
+def find_basin_boundary_point(N: int, K: float, omega: np.ndarray, 
                                max_iterations: int = 50) -> np.ndarray:
     """
     Use bisection to find point exactly on basin boundary.
-
+    
     Boundary defined as: lim_{t→∞} r(t) = r_critical ≈ 0.5
     """
-    # Start with two points: one that syncs, one that doesn't
-    theta_sync = np.zeros(N)  # Synchronized state
-    theta_desync = 2 * np.pi * np.random.rand(N)  # Random state
-
+    # Find initial bracketing points
+    max_attempts = 10
+    for attempt in range(max_attempts):
+        # Try synchronized state
+        theta_sync = np.random.normal(0, 0.1, N)  # Small noise around sync
+        theta_sync_evolved = evolve_to_steady_state(theta_sync, omega, K, t_max=50.0)
+        r_sync = np.abs(np.mean(np.exp(1j * theta_sync_evolved)))
+        
+        # Try desynchronized state
+        theta_desync = 2 * np.pi * np.random.rand(N)
+        theta_desync_evolved = evolve_to_steady_state(theta_desync, omega, K, t_max=50.0)
+        r_desync = np.abs(np.mean(np.exp(1j * theta_desync_evolved)))
+        
+        # Check if we bracket the boundary (r ≈ 0.5)
+        if r_sync > 0.6 and r_desync < 0.4:
+            break  # Good bracketing
+    else:
+        # Couldn't find bracketing points
+        return None
+    
+    # Now do bisection
     for iteration in range(max_iterations):
-        # Midpoint
         theta_mid = (theta_sync + theta_desync) / 2
-
-        # Evolve to final state
-        theta_evolved = evolve_to_steady_state(theta_mid, omega, K)
-        r_final = np.abs(np.mean(np.exp(1j * theta_evolved)))
-
+        theta_mid_evolved = evolve_to_steady_state(theta_mid, omega, K, t_max=50.0)
+        r_mid = np.abs(np.mean(np.exp(1j * theta_mid_evolved)))
+        
         # Update bounds
-        if r_final > 0.5:  # Synchronized
+        if r_mid > 0.5:
             theta_sync = theta_mid
-        else:  # Desynchronized
+            r_sync = r_mid
+        else:
             theta_desync = theta_mid
-
+            r_desync = r_mid
+        
         # Check convergence
-        if np.linalg.norm(theta_sync - theta_desync) < 1e-3:
+        if abs(r_sync - r_desync) < 0.05:  # Within 5% of boundary
             return theta_mid
-
+    
     return theta_mid  # Best approximation
-
-
 def compute_tangent_vector_1(theta: np.ndarray, omega: np.ndarray, 
                               K: float) -> np.ndarray:
     """
@@ -1978,12 +1992,30 @@ def compute_christoffel_term(theta: np.ndarray, vector: np.ndarray,
 
 
 def evolve_to_steady_state(theta: np.ndarray, omega: np.ndarray, 
-                           K: float, t_max: float = 100.0) -> np.ndarray:
-    """Evolve until steady state"""
+                           K: float, t_max: float = 100.0, 
+                           check_convergence: bool = True) -> np.ndarray:
+    """Evolve until steady state with early stopping."""
     dt = 0.01
     steps = int(t_max / dt)
-    for _ in range(steps):
-        theta = runge_kutta_step(theta, omega, K, dt)
+    
+    if check_convergence:
+        r_prev = np.abs(np.mean(np.exp(1j * theta)))
+        check_interval = 100  # Check every 1.0 time units
+        
+        for step in range(steps):
+            theta = runge_kutta_step(theta, omega, K, dt)
+            
+            if step % check_interval == 0:
+                r_current = np.abs(np.mean(np.exp(1j * theta)))
+                # Check if r has converged
+                if abs(r_current - r_prev) < 0.01:
+                    return theta  # Converged early!
+                r_prev = r_current
+    else:
+        # Fast path: just integrate
+        for _ in range(steps):
+            theta = runge_kutta_step(theta, omega, K, dt)
+    
     return theta
 
 
@@ -2048,40 +2080,41 @@ def compute_lyapunov_gradient(theta: np.ndarray, K: float,
     return gradient
 
 
-def compute_lyapunov_hessian(theta: np.ndarray, K: float,
+def compute_lyapunov_hessian(theta: np.ndarray, K: float, 
                               omega: np.ndarray) -> np.ndarray:
     """
     Compute Hessian matrix of Lyapunov function L = -|r|.
-
+    
     ∂²L/∂θ_i∂θ_j involves second derivatives of order parameter.
     """
     N = len(theta)
     r = np.mean(np.exp(1j * theta))
-
-    if abs(r) < 1e-8:
+    
+    # Add small regularization for numerical stability
+    r_reg = r + 1e-12 * (1 if abs(r) < 1e-8 else 0)
+    r_abs = abs(r_reg)
+    
+    if r_abs < 1e-8:
         return np.zeros((N, N))
-
+    
     hessian = np.zeros((N, N))
-
+    exp_theta = np.exp(1j * theta)
+    
     for i in range(N):
         for j in range(N):
             if i == j:
-                # Diagonal term
-                hessian[i, i] = -(1 / N) * np.real(
-                    np.exp(1j * theta[i]) * (
-                        np.conj(r) / abs(r) - abs(r) * np.conj(np.exp(1j * theta[i])) / (N * abs(r)**2)
-                    )
-                )
+                # Diagonal: ∂²|r|/∂θ_i²
+                term1 = np.conj(r_reg) / r_abs
+                term2 = r_abs * np.conj(exp_theta[i]) / (N * r_abs**2)
+                hessian[i, i] = -(1 / N) * np.real(exp_theta[i] * (term1 - term2))
             else:
-                # Off-diagonal term
+                # Off-diagonal: ∂²|r|/∂θ_i∂θ_j
                 hessian[i, j] = (1 / N**2) * np.real(
-                    np.exp(1j * theta[i]) * np.conj(np.exp(1j * theta[j])) / abs(r)
+                    exp_theta[i] * np.conj(exp_theta[j]) / r_abs
                 )
-
+    
     return hessian
-
-
-def test_phase_space_curvature_corrected(N_values: List[int] = None,
+def test_phase_space_curvature_hypothesis(N_values: List[int] = None,
                                          trials_per_N: int = 50) -> Dict[str, Any]:
     """
     CORRECTED: Test if phase space curvature explains basin scaling.
@@ -2256,113 +2289,6 @@ def measure_basin_volume_robust(N: int, K: float, n_trials: int = 200) -> float:
             sync_count += 1
 
     return sync_count / n_trials
-
-
-def test_phase_space_curvature_hypothesis(N_values: List[int] = None, trials_per_N: int = 100) -> Dict[str, Any]:
-    """
-    Hypothesis 2: Phase space curvature creates barriers.
-
-    The Riemannian geometry of phase space creates effective barriers through
-    curvature κ. Predicts barriers scale with local curvature κ ~ 1/√N.
-    """
-    if N_values is None:
-        N_values = [10, 20, 30, 50]
-
-    print("Testing phase space curvature hypothesis...")
-    print("Measuring local curvature near basin boundaries")
-
-    curvatures = []
-    curvature_errors = []
-
-    for N in N_values:
-        K_test = 0.02  # Near criticality
-
-        trial_curvatures = []
-        for trial in range(trials_per_N):
-            # Sample points near basin boundary (r ≈ 0.5)
-            theta = 2 * np.pi * np.random.rand(N)
-            omega = np.random.normal(0, 0.01, N)
-
-            # Evolve to near boundary
-            for _ in range(100):
-                theta = runge_kutta_step(theta, omega, K_test, 0.01)
-                r = np.abs(np.mean(np.exp(1j * theta)))
-                if 0.4 < r < 0.6:
-                    break
-
-            # Estimate local curvature using finite differences
-            # Curvature κ ≈ |d²r/dθ²| / (1 + (dr/dθ)²)^{3/2}
-            eps = 0.01
-            theta_plus = theta + eps * np.random.normal(0, 1, N)
-            theta_minus = theta - eps * np.random.normal(0, 1, N)
-
-            # Evolve perturbed states
-            for _ in range(20):
-                theta_plus = runge_kutta_step(theta_plus, omega, K_test, 0.01)
-                theta_minus = runge_kutta_step(theta_minus, omega, K_test, 0.01)
-
-            r_center = np.abs(np.mean(np.exp(1j * theta)))
-            r_plus = np.abs(np.mean(np.exp(1j * theta_plus)))
-            r_minus = np.abs(np.mean(np.exp(1j * theta_minus)))
-
-            # Second derivative approximation
-            curvature = abs(r_plus - 2*r_center + r_minus) / (eps**2)
-            if curvature > 0:
-                trial_curvatures.append(curvature)
-
-        if trial_curvatures:
-            avg_curvature = np.mean(trial_curvatures)
-            curvatures.append(avg_curvature)
-            curvature_errors.append(np.std(trial_curvatures))
-            print(f"N={N}: κ = {avg_curvature:.4f} ± {np.std(trial_curvatures):.4f}")
-        else:
-            curvatures.append(np.nan)
-            curvature_errors.append(np.nan)
-
-    # Fit κ(N) ~ N^α
-    valid_indices = [i for i, k in enumerate(curvatures) if np.isfinite(k)]
-    if len(valid_indices) >= 3:
-        N_fit = np.array([N_values[i] for i in valid_indices])
-        kappa_fit = np.array([curvatures[i] for i in valid_indices])
-
-        fit_result = fit_power_law(N_fit, kappa_fit, n_bootstrap=200)
-
-        measured_exponent = fit_result['exponent']
-        measured_error = fit_result['error']
-        r_squared = fit_result['r_squared']
-
-        print(f"Curvature scaling: κ(N) ~ N^{measured_exponent:.3f} ± {measured_error:.3f}")
-        print(f"R² = {r_squared:.3f}")
-
-        # For V ~ exp(-√N), we need κ ~ N^{-1/2} (curvature decreases with N)
-        theory_exponent = -0.5
-        exponent_diff = abs(measured_exponent - theory_exponent)
-        exponent_sigma = exponent_diff / measured_error if measured_error > 0 else float('inf')
-
-        if exponent_sigma < 2.0 and r_squared > 0.7:
-            verdict = f"✅ SUPPORTED: Phase space curvature explains scaling (σ = {exponent_sigma:.1f})"
-        elif exponent_sigma < 3.0 and r_squared > 0.5:
-            verdict = f"⚠️ PARTIALLY: Suggestive curvature effects (σ = {exponent_sigma:.1f})"
-        else:
-            verdict = f"❌ FALSIFIED: No curvature scaling (σ = {exponent_sigma:.1f})"
-    else:
-        measured_exponent = np.nan
-        measured_error = np.nan
-        r_squared = 0.0
-        verdict = "❌ INSUFFICIENT DATA: Need more curvature measurements"
-
-    print(f"Verdict: {verdict}")
-
-    return {
-        'theory': 'Phase Space Curvature (κ ~ N^{-1/2})',
-        'measured_exponent': measured_exponent,
-        'measured_error': measured_error,
-        'r_squared': r_squared,
-        'verdict': verdict,
-        'N_values': N_values,
-        'curvatures': curvatures,
-        'curvature_errors': curvature_errors
-    }
 
 
 def test_collective_mode_hypothesis(N_values: List[int] = None, trials_per_N: int = 100) -> Dict[str, Any]:
