@@ -53,32 +53,32 @@ def find_critical_coupling(N: int, omega_std: float = 0.01,
     print(f"Finding K_c for N={N}...", end="", flush=True)
     
     # First, do a coarse scan to find approximate range
-    K_test_values = [0.01, 0.05, 0.1, 0.2, 0.5, 1.0]
-    best_K = 0.01
+    K_test_values = np.logspace(-3, 0, 20)  # 0.001 to 1.0, 20 points
+    best_K = 0.001
     best_sync_prob = 0.0
     
     for K_test in K_test_values:
         sync_count = 0
-        for trial in range(20):  # Fewer trials for coarse scan
+        for trial in range(10):  # Fewer trials for coarse scan
             theta = 2 * np.pi * np.random.rand(N)
             omega = np.random.normal(0, omega_std, N)
             
-            # Evolve longer
-            for _ in range(1000):  # Increased evolution time
+            # Evolve
+            for _ in range(1000):
                 theta = runge_kutta_step(theta, omega, K_test, 0.01)
             
             r_final = np.abs(np.mean(np.exp(1j * theta)))
-            if r_final > 0.5:  # Lowered threshold for initial scan
+            if r_final > 0.6:  # Synchronization threshold
                 sync_count += 1
         
-        sync_prob = sync_count / 20
+        sync_prob = sync_count / 10
         if sync_prob > best_sync_prob:
             best_sync_prob = sync_prob
             best_K = K_test
     
     # Set binary search bounds around best K
-    K_low = max(0.001, best_K / 2)
-    K_high = min(2.0, best_K * 2)
+    K_low = max(0.0001, best_K / 3)
+    K_high = min(2.0, best_K * 3)
     
     for iteration in range(10):  # Binary search
         K_mid = (K_low + K_high) / 2
