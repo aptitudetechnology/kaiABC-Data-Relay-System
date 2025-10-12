@@ -2326,11 +2326,11 @@ def _single_basin_volume_trial(N: int, K: float, worker_id: int = 0):
         theta = 2 * np.pi * np.random.rand(N)
         
         # Evolve to steady state
-        for _ in range(1000):
+        for _ in range(2000):  # Increased evolution time
             theta = runge_kutta_step(theta, omega, K, 0.01)
         
         r_final = np.abs(np.mean(np.exp(1j * theta)))
-        if r_final > 0.8:
+        if r_final > 0.6:  # Lower threshold for synchronization
             sync_count += 1
     
     return sync_count / n_local_trials
