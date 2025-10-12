@@ -1175,42 +1175,41 @@ def _single_barrier_trial(N: int, K: float, _=None):
     theta_sync = np.zeros(N)
     omega = np.random.normal(0, 0.01, N)
 
-    # Perturb slightly to find saddle
-    perturbation_scale = 0.1
-    theta_saddle = theta_sync + perturbation_scale * np.random.normal(0, 1, N)
+    # Try multiple random perturbations to find saddle points
+    max_attempts = 10
+    barriers = []
 
-    # Use gradient descent to find saddle point
-    dt_saddle = 0.01
-    max_steps = 1000
+    for attempt in range(max_attempts):
+        # Random perturbation
+        perturbation_size = 0.1 + 0.2 * np.random.random()  # Vary perturbation size
+        theta_pert = theta_sync + perturbation_size * np.random.normal(0, 1, N)
 
-    for step in range(max_steps):
-        # Compute gradient of the Lyapunov function
-        sin_diff = np.sin(theta_saddle[:, None] - theta_saddle[None, :])
-        coupling_term = K/N * np.sum(sin_diff, axis=1)
+        # Evolve for a short time to see if it goes to saddle
+        dt = 0.01
+        n_steps = 100
 
-        # Saddle condition: gradient = 0, but Hessian has one negative eigenvalue
-        # Simplified: find point where order parameter is minimal
-        r_current = np.abs(np.mean(np.exp(1j * theta_saddle)))
+        for step in range(n_steps):
+            theta_pert = runge_kutta_step(theta_pert, omega, K, dt)
 
-        # Move towards lower r (potential saddle)
-        dtheta = -coupling_term * dt_saddle
-        theta_saddle += dtheta
+            # Check if we're near a saddle (low velocity, not synchronized)
+            r_current = np.abs(np.mean(np.exp(1j * theta_pert)))
+            if r_current < 0.3 and step > 20:  # Not synchronized but stable-ish
+                # Compute energy difference
+                # Simplified energy: -K/N * sum cos(θ_i - θ_j)
+                cos_diff = np.cos(theta_pert[:, None] - theta_pert[None, :])
+                energy_saddle = -K/N * np.sum(cos_diff) / 2
+                energy_sync = -K/N * N*(N-1)/2  # All cos(0) = 1
 
-        # Check convergence
-        if step > 100 and np.linalg.norm(dtheta) < 1e-6:
-            break
+                barrier = energy_saddle - energy_sync
+                if barrier > 0:  # Only count positive barriers
+                    barriers.append(barrier)
+                break
 
-    # Compute energy barrier using simplified Lyapunov function
-    # L = -K/N * sum_{i<j} cos(θ_i - θ_j) + (1/2) * sum ω_i² θ_i² (harmonic approximation)
-    cos_diff = np.cos(theta_saddle[:, None] - theta_saddle[None, :])
-    energy_saddle = -K/N * np.sum(cos_diff) / 2  # Divide by 2 to avoid double counting
-
-    # Energy of synchronized state
-    energy_sync = -K/N * N*(N-1)/2  # All cos(0) = 1
-
-    barrier_height = energy_saddle - energy_sync
-
-    return max(0, barrier_height)  # Ensure non-negative
+    # Return the minimum positive barrier found, or 0 if none
+    if barriers:
+        return min(barriers)  # Closest saddle
+    else:
+        return 0.0
 
 
 def measure_energy_barrier_scaling(N: int, K: float, trials: int = 50) -> float:
@@ -1283,7 +1282,7 @@ def test_energy_barrier_scaling_hypothesis(N_values: List[int] = None, trials_pe
         fit_result = fit_power_law(N_fit, barriers_fit, n_bootstrap=500)
 
         measured_exponent = fit_result['exponent']
-        measured_error = fit_result['exponent_error']
+        measured_error = fit_result['error']  # Changed from 'exponent_error' to 'error'
         r_squared = fit_result['r_squared']
 
         print(f"\nPower law fit: ΔH ~ N^{measured_exponent:.3f} ± {measured_error:.3f}")
