@@ -8,6 +8,10 @@ numpy>=1.21.0
 # Provides Wilson score intervals for rigorous uncertainty quantification
 scipy>=1.7.0
 
+# Machine learning and dimensionality reduction (RECOMMENDED)
+# Required for effective degrees of freedom analysis (PCA-based N_eff measurement)
+scikit-learn>=1.0.0
+
 # Plotting and visualization (OPTIONAL)
 # Enables publication-quality plots and formula comparison visualizations
 matplotlib>=3.5.0
@@ -19,6 +23,7 @@ tqdm>=4.65.0
 # Installation Notes:
 # - numpy: Required for all numerical computations
 # - scipy: Strongly recommended for proper confidence interval calculations
+# - scikit-learn: Required for effective degrees of freedom analysis (PCA)
 # - matplotlib: Optional but recommended for result visualization
 # - tqdm: Optional but improves user experience for long-running tests
 # - cupy-cuda11x: Optional but provides massive speedup for GPU-enabled simulations
@@ -49,3 +54,6 @@ cupy-cuda11x>=12.0.0
 # torch>=1.13.0+cu118
 # torchvision>=0.14.0+cu118
 # torchaudio>=0.13.0+cu118
+
+
+sklearn>=1.0.0
