@@ -15,6 +15,19 @@ from typing import Tuple, Dict, Any, List
 import multiprocessing as mp
 import functools
 
+# Global variables for multiprocessing (will be set before use)
+_global_K_c_values = None
+_global_K_margin = None
+_global_n_trials = None
+_global_omega_std = None
+
+def _measure_single_N_mp(args):
+    """Module-level function for multiprocessing basin volume measurement."""
+    i, N = args
+    K_test = _global_K_margin * _global_K_c_values[i]
+    V, V_err = measure_basin_volume(N, K_test, _global_n_trials, _global_omega_std)
+    return i, V, V_err, K_test
+
 def runge_kutta_step(theta, omega, K, dt):
     """4th order RK for Kuramoto model."""
     def kuramoto(th, om, k):
@@ -141,14 +154,15 @@ def calibrate_alpha_with_kc_scaling(N_values: List[int] = None,
     print(f"Measuring basin volumes at K = {K_margin}×K_c:")
     print("-" * 40)
     
-    def measure_single_N(args):
-        i, N = args
-        K_test = K_margin * K_c_values[i]
-        V, V_err = measure_basin_volume(N, K_test, n_trials, omega_std)
-        return i, V, V_err, K_test
+    # Set global variables for multiprocessing
+    global _global_K_c_values, _global_K_margin, _global_n_trials, _global_omega_std
+    _global_K_c_values = K_c_values
+    _global_K_margin = K_margin
+    _global_n_trials = n_trials
+    _global_omega_std = omega_std
     
     with mp.Pool(processes=min(mp.cpu_count(), len(N_values))) as pool:
-        results = pool.map(measure_single_N, enumerate(N_values))
+        results = pool.map(_measure_single_N_mp, enumerate(N_values))
     
     # Sort results by index
     results.sort(key=lambda x: x[0])
