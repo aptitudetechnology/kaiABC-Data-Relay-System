@@ -451,13 +451,17 @@ def test_effective_dof_scaling(N_values: List[int] = None, trials_per_N: int = 1
     print(f"Using multiprocessing: {min(mp.cpu_count(), 8)} cores")
     print()
 
-    # Use K in transition regime (where hypothesis applies)
+    # CRITICAL FIX: Scale K_c with N
     base_K_c = 0.0250  # For N=10
-    K = 1.2 * base_K_c  # Fixed ratio, not scaled
+    K_ratio = 1.2  # Fixed ratio above K_c
 
     n_eff_values = []
     for N in N_values:
-        print(f"Measuring N_eff for N={N}...")
+        # Scale K_c for this N: K_c(N) = K_c(10) * (10/N)
+        K_c_N = base_K_c * (10.0 / N)
+        K = K_ratio * K_c_N  # Now K scales with N!
+        
+        print(f"Measuring N_eff for N={N} (K={K:.4f}, K_c={K_c_N:.4f})...")
         n_eff = measure_effective_degrees_of_freedom(N, K, trials_per_N)
         n_eff_values.append(n_eff)
         print(f"  N={N}: N_eff = {n_eff:.2f}")
@@ -515,9 +519,9 @@ def test_consistency_predictions(N_values: List[int] = None, trials_per_N: int =
     print("\nTesting Consistency of Secondary Predictions")
     print("=" * 50)
 
-    # Use K in transition regime
-    base_K_c = 0.0250
-    K = 1.2 * base_K_c
+    # CRITICAL FIX: Scale K_c with N
+    base_K_c = 0.0250  # For N=10
+    K_ratio = 1.2  # Fixed ratio above K_c
 
     results = {}
 
@@ -525,9 +529,11 @@ def test_consistency_predictions(N_values: List[int] = None, trials_per_N: int =
     print("1. Order Parameter Fluctuations (σ_R ~ N^-0.5)...")
     sigma_r_values = []
     for N in N_values:
+        K_c_N = base_K_c * (10.0 / N)
+        K = K_ratio * K_c_N  # Now K scales with N!
         sigma_r = measure_order_parameter_fluctuations(N, K, trials_per_N)
         sigma_r_values.append(sigma_r)
-        print(f"   N={N}: σ_R = {sigma_r:.4f}")
+        print(f"   N={N}: σ_R = {sigma_r:.4f} (K={K:.4f})")
 
     fit_r = fit_power_law(np.array(N_values), np.array(sigma_r_values))
     results['order_parameter'] = {
@@ -542,9 +548,11 @@ def test_consistency_predictions(N_values: List[int] = None, trials_per_N: int =
     print("2. Correlation Length (ξ ~ N^0.5)...")
     xi_values = []
     for N in N_values:
+        K_c_N = base_K_c * (10.0 / N)
+        K = K_ratio * K_c_N  # Now K scales with N!
         xi = measure_correlation_length(N, K, trials_per_N)
         xi_values.append(xi)
-        print(f"   N={N}: ξ = {xi:.2f}")
+        print(f"   N={N}: ξ = {xi:.2f} (K={K:.4f})")
 
     fit_xi = fit_power_law(np.array(N_values), np.array(xi_values))
     results['correlation_length'] = {
@@ -559,9 +567,11 @@ def test_consistency_predictions(N_values: List[int] = None, trials_per_N: int =
     print("3. Eigenvalue Gap (λ_gap ~ N^-0.25)...")
     gap_values = []
     for N in N_values:
+        K_c_N = base_K_c * (10.0 / N)
+        K = K_ratio * K_c_N  # Now K scales with N!
         gap = analyze_eigenvalue_spectrum(N, K, trials_per_N)
         gap_values.append(gap)
-        print(f"   N={N}: λ_gap = {gap:.4f}")
+        print(f"   N={N}: λ_gap = {gap:.4f} (K={K:.4f})")
 
     fit_gap = fit_power_law(np.array(N_values), np.array(gap_values))
     results['eigenvalue_gap'] = {
@@ -617,15 +627,17 @@ def cross_validate_hypothesis(N_train: List[int] = None, N_test: List[int] = Non
     predicted = amplitude * np.array(N_test)**exponent
 
     # Measure actual
-    base_K_c = 0.0250
-    K = 1.2 * base_K_c
+    base_K_c = 0.0250  # For N=10
+    K_ratio = 1.2  # Fixed ratio above K_c
 
     actual = []
     for N in N_test:
+        K_c_N = base_K_c * (10.0 / N)
+        K = K_ratio * K_c_N  # Now K scales with N!
         n_eff = measure_effective_degrees_of_freedom(N, K, trials)
         actual.append(n_eff)
         print(f"  N={N}: Predicted {predicted[len(actual)-1]:.2f}, "
-              f"Actual {n_eff:.2f}")
+              f"Actual {n_eff:.2f} (K={K:.4f})")
 
     # Compare
     if len(predicted) > 1 and len(actual) > 1:
