@@ -12,7 +12,7 @@ Phase 2: Parameter Dependence of α (from robustness.md)
 - Test different K ranges and coupling regimes
 - Establish empirical models α(K, σ_ω, T)
 
-BOOTSTRAP APPROACH: Find working K for N_ref=10, then scale as K(N) = K_ref × √(10/N)
+BOOTSTRAP APPROACH: Find working K for N_ref=10, then scale as K(N) = K_ref * sqrt(10/N)
 SMP SUPPORT: Parallel processing for parameter sweeps.
 """
 
@@ -66,7 +66,7 @@ def runge_kutta_step(theta, omega, K, dt):
 def find_critical_coupling(N: int, omega_std: float = 0.01, 
                           n_trials: int = 50) -> float:
     """
-    Find K_c where synchronization probability ≈ 50%.
+    Find K_c where synchronization probability is approximately 50%.
     Uses binary search with N-adaptive parameters.
     """
     K_low = 0.0001
@@ -135,7 +135,7 @@ def find_critical_coupling(N: int, omega_std: float = 0.01,
             break  # Close enough to 50%
     
     K_c = K_mid
-    print(f" K_c ≈ {K_c:.4f} (P_sync = {sync_prob:.1%}, threshold={sync_threshold:.2f}, ω_std={omega_std_adaptive:.4f})")
+    print(f" K_c ~ {K_c:.4f} (P_sync = {sync_prob:.1%}, threshold={sync_threshold:.2f}, ω_std={omega_std_adaptive:.4f})")
     
     return K_c
 
@@ -228,7 +228,7 @@ def calibrate_alpha_bootstrap(N_values: List[int] = None,
                              omega_std: float = 0.01,
                              n_trials: int = 100) -> Dict[str, Any]:
     """
-    Bootstrap calibration: Find working K at N=10, then scale as K(N) = K_ref × √(10/N)
+    Bootstrap calibration: Find working K at N=10, then scale as K(N) = K_ref * sqrt(10/N)
     This avoids K_c detection issues and provides more stable results.
     """
     if N_values is None:
@@ -240,7 +240,7 @@ def calibrate_alpha_bootstrap(N_values: List[int] = None,
     print("=" * 70)
     print("STEP 2: MEASURING BASIN VOLUMES WITH SCALED K")
     print("=" * 70)
-    print(f"Using bootstrap scaling: K(N) = {K_ref:.3f} × √(10/N)")
+    print(f"Using bootstrap scaling: K(N) = {K_ref:.3f} * sqrt(10/N)")
     print(f"🔄 SMP: Using {min(mp.cpu_count(), len(N_values))} CPU cores for parallel processing")
     print()
     
@@ -269,7 +269,7 @@ def calibrate_alpha_bootstrap(N_values: List[int] = None,
     
     print()
     print("=" * 70)
-    print("STEP 3: FITTING α FROM V(N) ~ exp(-α√N)")
+    print("STEP 3: FITTING α FROM V(N) ~ exp(-α*sqrt(N))")
     print("=" * 70)
     
     # Handle V=0 or V=1 cases - LESS conservative for anti-aging research
@@ -282,9 +282,9 @@ def calibrate_alpha_bootstrap(N_values: List[int] = None,
         elif v >= 0.99:  # Include very high values for anti-aging analysis
             ln_V.append(np.log(max(v - 0.001, 0.01)))  # Slight adjustment for ln()
             valid_indices.append(i)
-            print(f"⚠️ Including N={N_values[i]} (V={v:.4f} very high - anti-aging candidate)")
+            print(f"WARNING: Including N={N_values[i]} (V={v:.4f} very high - anti-aging candidate)")
         else:
-            print(f"⚠️ Excluding N={N_values[i]} (V={v:.4f} too low)")
+            print(f"WARNING: Excluding N={N_values[i]} (V={v:.4f} too low)")
     
     if len(valid_indices) < 2:
         print()
@@ -315,7 +315,7 @@ def calibrate_alpha_bootstrap(N_values: List[int] = None,
     print()
     print("Calibration Results:")
     print("-" * 40)
-    print(f"Fitted: ln(V) = {slope:.4f}√N + {intercept:.4f}")
+    print(f"Fitted: ln(V) = {slope:.4f}*sqrt(N) + {intercept:.4f}")
     print(f"α = {alpha_fitted:.4f}")
     print(f"R² = {r_squared:.3f}")
     print()
@@ -323,7 +323,7 @@ def calibrate_alpha_bootstrap(N_values: List[int] = None,
     if r_squared > 0.8:
         verdict = "✅ EXCELLENT FIT"
     elif r_squared > 0.6:
-        verdict = "⚠️ MODERATE FIT"
+        verdict = "WARNING: MODERATE FIT"
     else:
         verdict = "❌ POOR FIT"
     
@@ -410,7 +410,7 @@ def validate_inverse_formula(calibration: Dict[str, Any],
         N_predicted = inverse_design_formula(V_target, alpha)
         N_test = max(5, int(np.round(N_predicted)))
         
-        # Find K_c for this N and set K = K_c × margin
+        # Find K_c for this N and set K = K_c * margin
         K_c = find_critical_coupling(N_test, omega_std, n_trials=30)
         K_test = K_margin * K_c
         
@@ -459,7 +459,7 @@ def validate_inverse_formula(calibration: Dict[str, Any],
     if success_rate > 0.8:
         verdict = "✅ VALIDATED: Inverse formula works!"
     elif success_rate > 0.5:
-        verdict = "⚠️ PARTIAL: Formula works in some regimes"
+        verdict = "WARNING: PARTIAL: Formula works in some regimes"
     else:
         verdict = "❌ FAILED: Formula needs refinement"
     
@@ -488,7 +488,7 @@ def kaiabc_design_with_calibrated_alpha(calibration: Dict[str, Any]) -> None:
     print("Using calibrated parameters:")
     print(f"  α = {alpha:.4f}")
     print(f"  K_c(10) = {K_c_10:.4f}")
-    print(f"  K_c scaling: K_c ~ {K_c_10 * np.sqrt(10):.4f} / √N")
+    print(f"  K_c scaling: K_c ~ {K_c_10 * np.sqrt(10):.4f} / sqrt(N)")
     print()
     
     print("Design Table:")
@@ -508,8 +508,8 @@ def kaiabc_design_with_calibrated_alpha(calibration: Dict[str, Any]) -> None:
     
     print()
     print("Key Insights:")
-    print("  • Larger networks need weaker coupling (K_c ~ 1/√N)")
-    print("  • But exponentially harder to synchronize (V ~ exp(-√N))")
+    print("  • Larger networks need weaker coupling (K_c ~ 1/sqrt(N))")
+    print("  • But exponentially harder to synchronize (V ~ exp(-sqrt(N)))")
     print("  • Trade-off: Size vs Reliability vs Power")
 
 
@@ -520,7 +520,7 @@ def run_complete_analysis():
     print("║" + " " * 15 + "ROBUSTNESS ANALYSIS WITH BOOTSTRAP" + " " * 20 + "║")
     print("╚" + "═" * 68 + "╝")
     print()
-    print(f"🔄 Bootstrap Approach: Find working K at N=10, scale as K(N) = K_ref × √(10/N)")
+    print(f"Bootstrap Approach: Find working K at N=10, scale as K(N) = K_ref * sqrt(10/N)")
     print()
     
     # Calibrate with bootstrap approach
@@ -542,13 +542,13 @@ def run_complete_analysis():
     print("=" * 70)
     print(f"✓ Calibrated α = {calibration['alpha']:.4f} (R²={calibration['r_squared']:.3f})")
     print(f"✓ Reference K = {calibration['K_ref']:.4f} at N=10")
-    print(f"✓ Scaling: K(N) = K_ref × √(10/N)")
+    print(f"Scaling: K(N) = K_ref * sqrt(10/N)")
     print()
     
     if calibration['r_squared'] > 0.8:
         print("🎉 SUCCESS! Bootstrap calibration achieved excellent fit!")
     else:
-        print("⚠️ Moderate success. Results may need refinement.")
+        print("WARNING: Moderate success. Results may need refinement.")
 
 
 def sweep_omega_std(omega_std_values: List[float] = None,
@@ -619,7 +619,7 @@ def sweep_omega_std(omega_std_values: List[float] = None,
         ss_tot = np.sum((np.array(alphas) - np.mean(alphas))**2)
         fit_r2 = 1 - ss_res/ss_tot if ss_tot > 0 else 0
         
-        print(f"Linear fit: α = {coeffs[0]:.4f} × ω_std + {coeffs[1]:.4f}")
+        print(f"Linear fit: α = {coeffs[0]:.4f} * ω_std + {coeffs[1]:.4f}")
         print(f"Fit quality: R² = {fit_r2:.3f}")
         
         if fit_r2 > 0.8:
