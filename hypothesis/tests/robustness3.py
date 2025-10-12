@@ -1,10 +1,18 @@
 #!/usr/bin/env python3
 """
-Find Critical Coupling K_c and Calibrate α
-===========================================
-Step 1: Find K_c where synchronization becomes possible
-Step 2: Work at K = K_c × margin to ensure synchronization
-Step 3: Calibrate α at this K value
+Bootstrap Calibration of Basin Volume Scaling α
+===============================================
+BOOTSTRAP APPROACH: Find working K for N_ref=10, then scale as K(N) = K_ref × √(10/N)
+This avoids K_c detection issues and provides stable reference point for scaling.
+
+Step 1: Find K_ref where N=10 shows reasonable synchronization (bootstrap anchor)
+Step 2: Scale K(N) = K_ref × √(10/N) for other N values
+Step 3: Measure basin volumes V(N) and fit ln(V) = -α√N + c
+
+N-ADAPTIVE PARAMETERS: Based on research paper insights about multi-attractor systems
+- Evolution time scales with N: evolution_steps = max(500, N × 10)
+- Sync threshold adapts to N: sync_threshold = max(0.3, 0.8 - N/100)
+- Frequency dispersion increases with N: ω_std_adaptive = ω_std × (1 + N/200)
 
 SMP SUPPORT: Uses multiprocessing for parallel computation of trials
 and N-value sweeps. Automatically scales to available CPU cores.
