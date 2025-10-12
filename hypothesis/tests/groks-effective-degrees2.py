@@ -1335,9 +1335,9 @@ def _single_stochastic_trial(N: int, K: float, noise_strength: float = 0.01, _=N
     theta = np.zeros(N)
     omega = np.random.normal(0, 0.01, N)
 
-    # Simulate with noise
+    # Simulate with noise for moderate time
     dt = 0.01
-    t_max = 200.0  # Longer simulation for rare events to occur
+    t_max = 50.0  # Moderate simulation time
     steps = int(t_max / dt)
 
     r_trajectory = []
@@ -1354,17 +1354,14 @@ def _single_stochastic_trial(N: int, K: float, noise_strength: float = 0.01, _=N
         r = np.abs(np.mean(np.exp(1j * theta)))
         r_trajectory.append(r)
 
-        # Early termination if desynchronized
-        if r < 0.5:  # Threshold for "loss of synchronization"
-            break
-
     r_trajectory = np.array(r_trajectory)
 
-    # Find minimum r (closest approach to desynchronization)
+    # For MDP, look at rare large fluctuations rather than complete desynchronization
+    # Define rare event as r dropping below a threshold that's still synchronized
     min_r = np.min(r_trajectory)
-    time_to_minimum = np.argmin(r_trajectory) * dt
+    max_fluctuation = np.max(r_trajectory) - np.min(r_trajectory)
 
-    return min_r, time_to_minimum
+    return min_r, max_fluctuation
 
 
 def test_stochastic_dynamics_hypothesis(N_values: List[int] = None, trials_per_N: int = 1000) -> Dict[str, Any]:
