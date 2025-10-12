@@ -44,17 +44,12 @@ except ImportError:
 # Worker functions for multiprocessing (must be at module level)
 def _single_pca_trial(N: int, K: float, n_snapshots: int = 50, _=None):
     """Worker function for PCA analysis of phase trajectories."""
-    theta, synchronized = simulate_kuramoto(N, K, t_max=100.0, dt=0.1)
-
-    if not synchronized:
-        # Only analyze trajectories that reach synchronization
-        return None
-
-    # Collect phase snapshots during synchronization
-    theta_snapshots = []
+    # Start from random initial conditions
     theta_current = 2 * np.pi * np.random.rand(N)
     omega = np.random.normal(0, 0.01, N)
 
+    # Collect phase snapshots DURING evolution (transient dynamics)
+    theta_snapshots = []
     dt = 0.1
     steps_per_snapshot = 10  # Every 1.0 time units
 
@@ -62,7 +57,7 @@ def _single_pca_trial(N: int, K: float, n_snapshots: int = 50, _=None):
         for _ in range(steps_per_snapshot):
             theta_current = runge_kutta_step(theta_current, omega, K, dt)
 
-        # Store unwrapped phases (remove 2π discontinuities)
+        # Store snapshot regardless of synchronization state
         theta_snapshots.append(theta_current.copy())
 
     if len(theta_snapshots) < 10:
