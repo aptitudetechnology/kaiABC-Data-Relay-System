@@ -32,7 +32,7 @@ def find_critical_coupling(N: int, omega_std: float = 0.01,
                           n_trials: int = 50) -> float:
     """
     Find K_c where synchronization probability ≈ 50%.
-    Uses binary search with multiprocessing for trials.
+    Uses binary search.
     """
     K_low = 0.001
     K_high = 1.0
@@ -42,8 +42,9 @@ def find_critical_coupling(N: int, omega_std: float = 0.01,
     for iteration in range(12):  # Binary search
         K_mid = (K_low + K_high) / 2
         
-        # Test synchronization probability with multiprocessing
-        def single_sync_trial(_):
+        # Test synchronization probability
+        sync_count = 0
+        for trial in range(n_trials):
             theta = 2 * np.pi * np.random.rand(N)
             omega = np.random.normal(0, omega_std, N)
             
@@ -52,12 +53,9 @@ def find_critical_coupling(N: int, omega_std: float = 0.01,
                 theta = runge_kutta_step(theta, omega, K_mid, 0.01)
             
             r_final = np.abs(np.mean(np.exp(1j * theta)))
-            return r_final > 0.7  # Synchronization threshold
+            if r_final > 0.7:  # Synchronization threshold
+                sync_count += 1
         
-        with mp.Pool(processes=min(mp.cpu_count(), 8)) as pool:
-            sync_results = pool.map(single_sync_trial, range(n_trials))
-        
-        sync_count = sum(sync_results)
         sync_prob = sync_count / n_trials
         
         # Binary search update
@@ -76,9 +74,10 @@ def find_critical_coupling(N: int, omega_std: float = 0.01,
 
 def measure_basin_volume(N: int, K: float, n_trials: int = 100,
                         omega_std: float = 0.01) -> Tuple[float, float]:
-    """Measure basin volume via Monte Carlo with multiprocessing."""
+    """Measure basin volume via Monte Carlo."""
+    sync_count = 0
     
-    def single_basin_trial(_):
+    for trial in range(n_trials):
         theta = 2 * np.pi * np.random.rand(N)
         omega = np.random.normal(0, omega_std, N)
         
@@ -88,12 +87,9 @@ def measure_basin_volume(N: int, K: float, n_trials: int = 100,
         
         # Check synchronization
         r_final = np.abs(np.mean(np.exp(1j * theta)))
-        return r_final > 0.7
+        if r_final > 0.7:
+            sync_count += 1
     
-    with mp.Pool(processes=min(mp.cpu_count(), 8)) as pool:
-        sync_results = pool.map(single_basin_trial, range(n_trials))
-    
-    sync_count = sum(sync_results)
     volume = sync_count / n_trials
     error = np.sqrt(volume * (1 - volume) / n_trials) if volume > 0 else 0
     
@@ -283,7 +279,7 @@ def validate_inverse_formula(calibration: Dict[str, Any],
     results = []
     omega_std = 0.01
     
-    def validate_single_target(V_target):
+    for V_target in V_targets:
         # Predict N
         N_predicted = inverse_design_formula(V_target, alpha)
         N_test = max(5, int(np.round(N_predicted)))
@@ -292,13 +288,25 @@ def validate_inverse_formula(calibration: Dict[str, Any],
         K_c = find_critical_coupling(N_test, omega_std, n_trials=30)
         K_test = K_margin * K_c
         
+        print(f"\nTarget V = {V_target:.2f}")
+        print(f"  Predicted N = {N_predicted:.1f} → Testing N = {N_test}")
+        print(f"  K_c({N_test}) = {K_c:.4f}, using K = {K_test:.4f}")
+        
         # Measure actual V
         V_measured, V_error = measure_basin_volume(N_test, K_test, n_trials, omega_std)
         
         error = abs(V_measured - V_target)
         rel_error = error / V_target if V_target > 0 else float('inf')
         
-        return {
+        print(f"  Measured V = {V_measured:.4f} ± {V_error:.4f}")
+        print(f"  Error = {error:.4f} ({rel_error:.1%} relative)")
+        
+        # Success criteria: within 20% relative or 0.10 absolute
+        success = (rel_error < 0.3) or (error < 0.15)
+        status = "✅" if success else "❌"
+        print(f"  {status} {'PASS' if success else 'FAIL'}")
+        
+        results.append({
             'V_target': V_target,
             'N_predicted': N_predicted,
             'N_test': N_test,
@@ -308,23 +316,8 @@ def validate_inverse_formula(calibration: Dict[str, Any],
             'V_error': V_error,
             'error': error,
             'rel_error': rel_error,
-            'success': (rel_error < 0.3) or (error < 0.15)
-        }
-    
-    # Run validations in parallel
-    with mp.Pool(processes=min(mp.cpu_count(), len(V_targets))) as pool:
-        results = pool.map(validate_single_target, V_targets)
-    
-    # Print results (sequential for readability)
-    for result in results:
-        print(f"\nTarget V = {result['V_target']:.2f}")
-        print(f"  Predicted N = {result['N_predicted']:.1f} → Testing N = {result['N_test']}")
-        print(f"  K_c({result['N_test']}) = {result['K_c']:.4f}, using K = {result['K_test']:.4f}")
-        print(f"  Measured V = {result['V_measured']:.4f} ± {result['V_error']:.4f}")
-        print(f"  Error = {result['error']:.4f} ({result['rel_error']:.1%} relative)")
-        
-        status = "✅" if result['success'] else "❌"
-        print(f"  {status} {'PASS' if result['success'] else 'FAIL'}")
+            'success': success
+        })
     
     # Summary
     success_rate = np.mean([r['success'] for r in results])
