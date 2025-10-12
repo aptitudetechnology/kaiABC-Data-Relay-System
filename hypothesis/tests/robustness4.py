@@ -62,6 +62,31 @@ def runge_kutta_step(theta, omega, K, dt):
     return theta + (dt/6)*(k1 + 2*k2 + 2*k3 + k4)
 
 
+def get_sync_threshold(N: int, K: float) -> float:
+    """
+    Unified synchronization threshold function.
+    
+    Physical justification:
+    - For positive K (synchronization): threshold decreases with N as larger networks
+      are harder to synchronize perfectly
+    - For negative K (anti-synchronization): lower threshold as the dynamics change
+    
+    Args:
+        N: Network size
+        K: Coupling strength
+        
+    Returns:
+        Synchronization threshold for order parameter r
+    """
+    if K < 0:
+        # Anti-synchronization regime - lower threshold
+        return 0.3
+    else:
+        # Synchronization regime - N-dependent threshold
+        # Starts at 0.7 for small N, decreases to 0.5 for large N
+        return max(0.5, 0.7 - 0.01 * np.log(N))
+
+
 def find_critical_coupling(N: int, omega_std: float = 0.01, 
                           n_trials: int = 50) -> float:
     """
@@ -75,7 +100,7 @@ def find_critical_coupling(N: int, omega_std: float = 0.01,
     
     # N-dependent parameters - more aggressive adaptation
     evolution_steps = max(1000, N * 20)  # More evolution time
-    sync_threshold = max(0.15, 0.9 - N/50)  # Much lower threshold for larger N
+    sync_threshold = get_sync_threshold(N, 0.1)  # Use positive K threshold for finding K_c
     omega_std_adaptive = omega_std * (1.0 / np.sqrt(N))  # Reduce heterogeneity for larger N
     
     # First, do a coarse scan to find approximate range
@@ -152,9 +177,10 @@ def measure_basin_volume(N: int, K: float, n_trials: int = 100,
         for _ in range(1000):  # Increased evolution time
             theta = runge_kutta_step(theta, omega, K, 0.01)
         
-        # Check synchronization with adjusted threshold
+        # Check synchronization with unified threshold
         r_final = np.abs(np.mean(np.exp(1j * theta)))
-        if r_final > 0.6:  # Adjusted threshold to match K_c search
+        threshold = get_sync_threshold(N, K)
+        if r_final > threshold:
             sync_count += 1
     
     volume = sync_count / n_trials
@@ -204,7 +230,7 @@ def find_working_k_bootstrap(N_ref: int = 10, omega_std: float = 0.01,
             
             r_final = np.abs(np.mean(np.exp(1j * theta)))
             # Adaptive threshold based on research paper insights
-            threshold = 0.3 if K < 0 else 0.5  # Lower threshold for negative K
+            threshold = get_sync_threshold(N_ref, K)
             if r_final > threshold:
                 sync_count += 1
         
@@ -223,9 +249,105 @@ def find_working_k_bootstrap(N_ref: int = 10, omega_std: float = 0.01,
     return best_K
 
 
-def calibrate_alpha_bootstrap(N_values: List[int] = None,
-                             omega_std: float = 0.01,
-                             n_trials: int = 100) -> Dict[str, Any]:
+def calibrate_alpha_independent(N_values: List[int] = None,
+                               omega_std: float = 0.01,
+                               n_trials: int = 100) -> Dict[str, Any]:
+    """
+    Independent calibration: Measure K_c for each N separately, then fit scaling laws.
+    This avoids circular reasoning by not assuming any scaling a priori.
+    """
+    if N_values is None:
+        N_values = [10, 20, 30, 50]  # Full mode N values
+
+    print("=" * 70)
+    print("STEP 1: FINDING K_c FOR EACH N INDEPENDENTLY")
+    print("=" * 70)
+
+    # Measure K_c for each N independently
+    K_c_values = []
+    for N in N_values:
+        K_c = find_critical_coupling(N, omega_std, n_trials)
+        K_c_values.append(K_c)
+        print(f"N={N:2d}: K_c = {K_c:.4f}")
+
+    print("\n" + "=" * 70)
+    print("STEP 2: FITTING K_c SCALING LAW")
+    print("=" * 70)
+
+    # Fit K_c vs N relationship: K_c ~ A * N^(-beta)
+    log_N = np.log(N_values)
+    log_K_c = np.log(K_c_values)
+
+    # Linear fit: log(K_c) = log(A) - beta * log(N)
+    coeffs = np.polyfit(log_N, log_K_c, 1)
+    beta = -coeffs[0]  # Since K_c ~ N^(-beta), so log(K_c) = const - beta*log(N)
+    A = np.exp(coeffs[1])
+
+    r_squared_K = 1 - np.sum((log_K_c - np.polyval(coeffs, log_N))**2) / np.sum((log_K_c - np.mean(log_K_c))**2)
+
+    print(f"Fitted: K_c = {A:.4f} * N^(-{beta:.4f})")
+    print(f"R² = {r_squared_K:.3f}")
+
+    print("\n" + "=" * 70)
+    print("STEP 3: MEASURING BASIN VOLUMES AT K_c")
+    print("=" * 70)
+
+    # For each N, measure basin volume at its K_c
+    V_measured = []
+    V_errors = []
+
+    for i, N in enumerate(N_values):
+        K_test = K_c_values[i]
+        print(f"N={N} (K={K_test:.4f}): ", end="", flush=True)
+        V, V_err = measure_basin_volume(N, K_test, n_trials, omega_std)
+        V_measured.append(V)
+        V_errors.append(V_err)
+        print(f"V = {V:.4f} ± {V_err:.4f}")
+
+    # Filter out invalid data points (V too close to 0 or 1)
+    VALID_RANGE = (0.05, 0.95)
+    valid_indices = [i for i, v in enumerate(V_measured) if VALID_RANGE[0] < v < VALID_RANGE[1]]
+
+    if len(valid_indices) < 3:
+        print(f"WARNING: Only {len(valid_indices)} valid data points. Need at least 3 for reliable fit.")
+        valid_indices = list(range(len(N_values)))  # Use all data if we have to
+
+    N_valid = [N_values[i] for i in valid_indices]
+    V_valid = [V_measured[i] for i in valid_indices]
+    V_err_valid = [V_errors[i] for i in valid_indices]
+
+    print("\n" + "=" * 70)
+    print("STEP 4: FITTING α FROM ln(V) vs sqrt(N)")
+    print("=" * 70)
+
+    # Fit ln(V) = intercept - α * sqrt(N)
+    sqrt_N = np.sqrt(N_valid)
+    ln_V = np.log(V_valid)
+
+    # Linear fit
+    coeffs_alpha = np.polyfit(sqrt_N, ln_V, 1)
+    alpha_fitted = -coeffs_alpha[0]  # Since ln(V) = const - α*sqrt(N)
+    intercept = coeffs_alpha[1]
+
+    # Calculate R²
+    ln_V_pred = np.polyval(coeffs_alpha, sqrt_N)
+    r_squared = 1 - np.sum((ln_V - ln_V_pred)**2) / np.sum((ln_V - np.mean(ln_V))**2)
+
+    print(f"Fitted: ln(V) = {intercept:.4f} - {alpha_fitted:.4f}*√N")
+    print(f"α = {alpha_fitted:.4f}")
+    print(f"R² = {r_squared:.3f}")
+
+    return {
+        'alpha': alpha_fitted,
+        'alpha_intercept': intercept,
+        'r_squared': r_squared,
+        'N_values': N_valid,
+        'V_measured': V_valid,
+        'V_errors': V_err_valid,
+        'K_c_values': K_c_values,
+        'K_scaling': {'A': A, 'beta': beta, 'r_squared': r_squared_K},
+        'method': 'independent'
+    }
     """
     Bootstrap calibration: Find working K at N=10, then scale as K(N) = K_ref * sqrt(10/N)
     This avoids K_c detection issues and provides more stable results.
@@ -271,19 +393,29 @@ def calibrate_alpha_bootstrap(N_values: List[int] = None,
     print("STEP 3: FITTING α FROM V(N) ~ exp(-α*sqrt(N))")
     print("=" * 70)
     
-    # Handle V=0 or V=1 cases - LESS conservative for anti-aging research
+    # Filter data: only use measurements in the regime where exponential decay is valid
+    VALID_RANGE = (0.05, 0.95)  # Avoid extremes where ln() becomes unreliable
     valid_indices = []
     ln_V = []
     for i, v in enumerate(V_measured):
-        if 0.01 < v < 0.99:  # Only exclude true extremes
+        if VALID_RANGE[0] < v < VALID_RANGE[1]:
             ln_V.append(np.log(v))
             valid_indices.append(i)
-        elif v >= 0.99:  # Include very high values for anti-aging analysis
-            ln_V.append(np.log(max(v - 0.001, 0.01)))  # Slight adjustment for ln()
-            valid_indices.append(i)
-            print(f"WARNING: Including N={N_values[i]} (V={v:.4f} very high - anti-aging candidate)")
+        elif v >= 0.99:
+            print(f"Excluding N={N_values[i]} (V={v:.4f} too high - not in fragility regime)")
         else:
-            print(f"WARNING: Excluding N={N_values[i]} (V={v:.4f} too low)")
+            print(f"Excluding N={N_values[i]} (V={v:.4f} too low - no synchronization)")
+
+    if len(valid_indices) < 3:
+        print(f"WARNING: Only {len(valid_indices)} valid data points in fragility regime.")
+        print("Consider adjusting K values or N range for better measurements.")
+        # Use all data if we must, but warn about reliability
+        if len(valid_indices) < 2:
+            for i, v in enumerate(V_measured):
+                if v > 0.01:  # At least some sync
+                    if i not in valid_indices:
+                        ln_V.append(np.log(max(v, 0.01)))
+                        valid_indices.append(i)
     
     if len(valid_indices) < 2:
         print()
@@ -350,7 +482,7 @@ def measure_basin_volume_bootstrap(N: int, K: float, n_trials: int = 100,
     sync_count = 0
     
     # Adaptive threshold based on coupling sign (research paper insight)
-    threshold = 0.3 if K < 0 else 0.5
+    threshold = get_sync_threshold(N, K)
     
     for trial in range(n_trials):
         theta = 2 * np.pi * np.random.rand(N)
@@ -522,8 +654,8 @@ def run_complete_analysis():
     print(f"Bootstrap Approach: Find working K at N=10, scale as K(N) = K_ref * sqrt(10/N)")
     print()
     
-    # Calibrate with bootstrap approach
-    calibration = calibrate_alpha_bootstrap(
+    # Calibrate with independent approach (no circular reasoning)
+    calibration = calibrate_alpha_independent(
         N_values=[10, 20, 30, 50],
         omega_std=0.01,
         n_trials=100
@@ -580,7 +712,7 @@ def sweep_omega_std(omega_std_values: List[float] = None,
         print(f"{'='*50}")
         
         # Run bootstrap calibration for this ω_std
-        calibration = calibrate_alpha_bootstrap(
+        calibration = calibrate_alpha_independent(
             N_values=N_values,
             omega_std=omega_std,
             n_trials=n_trials
