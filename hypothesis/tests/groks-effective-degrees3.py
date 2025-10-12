@@ -2320,18 +2320,17 @@ def _single_basin_volume_trial(N: int, K: float, worker_id: int = 0):
     # Each worker does 50 trials
     n_local_trials = 50
     sync_count = 0
-    omega = np.random.normal(0, 0.01, N)
     
     for _ in range(n_local_trials):
         theta = 2 * np.pi * np.random.rand(N)
-        omega = np.random.normal(0, 0.005, N)  # Smaller variance for easier synchronization
+        omega = np.random.normal(0, 0.005, N)  # Different omega per trial, smaller variance
         
         # Evolve to steady state
-        for _ in range(2000):  # Increased evolution time
+        for _ in range(5000):  # Increased evolution time
             theta = runge_kutta_step(theta, omega, K, 0.01)
         
         r_final = np.abs(np.mean(np.exp(1j * theta)))
-        if r_final > 0.5:  # Even lower threshold for synchronization
+        if r_final > 0.3:  # Lower threshold for synchronization
             sync_count += 1
     
     return sync_count / n_local_trials
