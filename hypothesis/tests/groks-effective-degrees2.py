@@ -1401,7 +1401,7 @@ def test_stochastic_dynamics_hypothesis(N_values: List[int] = None, trials_per_N
         rare_events = []
         for trial in range(trials_per_N):
             min_r, time_to_min = _single_stochastic_trial(N, K, noise_strength=0.005)
-            if min_r < 0.8:  # Consider this a "rare event"
+            if min_r < 0.3:  # Stricter threshold for true desynchronization
                 rare_events.append(min_r)
 
         if len(rare_events) >= 10:
@@ -1442,7 +1442,7 @@ def test_stochastic_dynamics_hypothesis(N_values: List[int] = None, trials_per_N
         fit_result = fit_power_law(N_fit, rates_fit, n_bootstrap=200)
 
         measured_exponent = fit_result['exponent']
-        measured_error = fit_result['exponent_error']
+        measured_error = fit_result['error']  # Changed from 'exponent_error' to 'error'
         r_squared = fit_result['r_squared']
 
         print(f"\nMDP scaling fit: I(N) ~ N^{measured_exponent:.3f} ± {measured_error:.3f}")
@@ -1607,7 +1607,7 @@ def test_fractal_dimension_hypothesis(N_values: List[int] = None, trials_per_N: 
         fit_result = fit_power_law(N_fit, uncertainty_exponents, n_bootstrap=200)
 
         measured_exponent = fit_result['exponent']
-        measured_error = fit_result['exponent_error']
+        measured_error = fit_result['error']  # Changed from 'exponent_error' to 'error'
         r_squared = fit_result['r_squared']
 
         print(f"\nUncertainty exponent scaling: α(N) ~ N^{measured_exponent:.3f} ± {measured_error:.3f}")
