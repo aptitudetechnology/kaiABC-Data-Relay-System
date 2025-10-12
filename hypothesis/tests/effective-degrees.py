@@ -654,6 +654,86 @@ def test_barrier_scaling_hypothesis(N_values, trials_per_N=100):
         return False
 
 
+def test_kc_scaling_hypothesis(N_values: List[int], trials_per_N: int = 100) -> Dict[str, Any]:
+    """
+    CRITICAL TEST: Does K_c scale as 1/√N?
+    
+    This would explain EVERYTHING:
+    - N_eff ≈ 1 (mean field dominance)
+    - σ_R ~ 1/N (strong fluctuations)  
+    - V ~ exp(-√N) (from K_c scaling!)
+    """
+    print("\n" + "="*70)
+    print("TESTING K_c SCALING HYPOTHESIS")
+    print("="*70)
+    print("If K_c ~ N^ν with ν ≈ -0.5, then √N scaling is explained!")
+    print()
+    
+    K_c_values = []
+    
+    for N in N_values:
+        # Measure K_c by finding where sync probability ≈ 50%
+        # Binary search for K_c
+        K_low = 0.001
+        K_high = 0.100
+        
+        for iteration in range(10):  # Binary search iterations
+            K_mid = (K_low + K_high) / 2
+            
+            # Test sync probability at K_mid
+            sync_count = 0
+            test_trials = 50  # Fewer trials for speed
+            
+            for _ in range(test_trials):
+                _, synchronized = simulate_kuramoto(N, K_mid, t_max=100.0)
+                if synchronized:
+                    sync_count += 1
+            
+            sync_prob = sync_count / test_trials
+            
+            # Refine bounds
+            if sync_prob < 0.4:
+                K_low = K_mid
+            elif sync_prob > 0.6:
+                K_high = K_mid
+            else:
+                break  # Close enough to 50%
+        
+        K_c = K_mid
+        K_c_values.append(K_c)
+        print(f"  N={N}: K_c ≈ {K_c:.4f}")
+    
+    # Fit K_c ~ N^ν
+    fit_result = fit_power_law(np.array(N_values), np.array(K_c_values))
+    
+    nu = fit_result['exponent']
+    nu_error = fit_result['error']
+    
+    print(f"\nK_c Scaling Results:")
+    print(f"  Measured exponent: ν = {nu:.3f} ± {nu_error:.3f}")
+    print(f"  Expected for 1/√N: ν = -0.500")
+    print(f"  R² = {fit_result['r_squared']:.3f}")
+    
+    # Check hypothesis
+    if -0.65 <= nu <= -0.35:
+        verdict = "✅ SUPPORTED: K_c ~ 1/√N"
+        print(f"\n🎉 BREAKTHROUGH: K_c scaling explains √N in basin volume!")
+        print(f"   Mechanism: Basin volume ~ exp(-margin/√N) where margin ∝ K_c")
+    else:
+        verdict = "❌ FALSIFIED: K_c ~ N^{nu:.2f}"
+        print(f"\n⚠️ K_c scaling doesn't match 1/√N prediction")
+    
+    return {
+        'theory': 'K_c Scaling',
+        'prediction': 'K_c ~ N^-0.5',
+        'measured_exponent': nu,
+        'measured_error': nu_error,
+        'r_squared': fit_result['r_squared'],
+        'verdict': verdict,
+        'data': {'N': N_values, 'K_c': K_c_values}
+    }
+
+
 def cross_validate_hypothesis(N_train: List[int] = None, N_test: List[int] = None,
                             trials: int = 100) -> Dict[str, Any]:
     """
@@ -812,6 +892,7 @@ if __name__ == "__main__":
     parser.add_argument('--consistency', action='store_true', help='Run only consistency tests')
     parser.add_argument('--cross-validate', action='store_true', help='Run cross-validation test')
     parser.add_argument('--barrier', action='store_true', help='Run barrier scaling hypothesis test')
+    parser.add_argument('--kc', action='store_true', help='Run K_c scaling hypothesis test')
 
     args = parser.parse_args()
 
@@ -835,6 +916,8 @@ if __name__ == "__main__":
         result = cross_validate_hypothesis(N_train, N_test, trials)
     elif args.barrier:
         result = test_barrier_scaling_hypothesis(N_values, trials)
+    elif args.kc:
+        result = test_kc_scaling_hypothesis(N_values, trials)
     else:
         result = run_complete_hypothesis_test(N_values, trials)
 
