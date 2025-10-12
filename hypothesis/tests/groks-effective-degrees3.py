@@ -200,7 +200,7 @@ def _single_basin_volume_trial(N: int, K: float, _=None):
         theta = 2 * np.pi * np.random.rand(N)
 
         # Evolve to steady state
-        for _ in range(1000):
+        for _ in range(3000):
             theta = runge_kutta_step(theta, omega, K, 0.01)
 
         r_final = np.abs(np.mean(np.exp(1j * theta)))
