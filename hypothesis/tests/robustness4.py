@@ -51,7 +51,7 @@ def _measure_single_N_bootstrap_mp(args):
     return i, V, V_err
 
 def runge_kutta_step(theta, omega, K, dt):
-    """4th order RK for Kuramoto model."""
+    """Fourth order Runge-Kutta for Kuramoto model."""
     def kuramoto(th, om, k):
         N = len(th)
         return om + (k/N) * np.sum(np.sin(th[:, None] - th), axis=1)
