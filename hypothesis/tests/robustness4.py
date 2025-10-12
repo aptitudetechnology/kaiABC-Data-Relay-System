@@ -16,13 +16,13 @@ BOOTSTRAP APPROACH: Find working K for N_ref=10, then scale as K(N) = K_ref × �
 SMP SUPPORT: Parallel processing for parameter sweeps.
 """
 
-N-ADAPTIVE PARAMETERS: Based on research paper insights about multi-attractor systems
-- Evolution time scales with N: evolution_steps = max(500, N × 10)
-- Sync threshold adapts to N: sync_threshold = max(0.3, 0.8 - N/100)
-- Frequency dispersion increases with N: ω_std_adaptive = ω_std × (1 + N/200)
+# N-ADAPTIVE PARAMETERS: Based on research paper insights about multi-attractor systems
+# - Evolution time scales with N: evolution_steps = max(500, N * 10)
+# - Sync threshold adapts to N: sync_threshold = max(0.3, 0.8 - N/100)
+# - Frequency dispersion increases with N: ω_std_adaptive = ω_std * (1 + N/200)
 
-SMP SUPPORT: Uses multiprocessing Pool for parallel basin volume measurements.
-Automatically scales to available CPU cores for faster computation.
+# SMP SUPPORT: Uses multiprocessing Pool for parallel basin volume measurements.
+# Automatically scales to available CPU cores for faster computation.
 """
 
 import numpy as np
