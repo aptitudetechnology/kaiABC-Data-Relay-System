@@ -23,7 +23,6 @@ SMP SUPPORT: Parallel processing for parameter sweeps.
 
 # SMP SUPPORT: Uses multiprocessing Pool for parallel basin volume measurements.
 # Automatically scales to available CPU cores for faster computation.
-"""
 
 import numpy as np
 from typing import Tuple, Dict, Any, List
