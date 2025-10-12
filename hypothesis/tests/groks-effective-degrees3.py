@@ -2310,7 +2310,7 @@ def test_phase_space_curvature_hypothesis(N_values: List[int] = None,
     return {
         **results,
         'theory': 'Phase Space Curvature (H ~ N^α)',
-        'H_scaling_exponent': alpha_H,
+        'measured_exponent': alpha_H,
         'mechanistic_coefficient': B_fitted,
         'prediction_r_squared': r_squared,
         'verdict': verdict
@@ -2343,13 +2343,13 @@ def _single_sync_trial(N: int, K: float, omega_std: float, _=None):
     theta = 2 * np.pi * np.random.rand(N)
     omega = np.random.normal(0, omega_std, N)
 
-    # Evolve longer for larger N
-    n_steps = min(2000, 100 + 20 * N)
+    # Evolve longer for all N
+    n_steps = 2000  # Increased evolution time
     for _ in range(n_steps):
         theta = runge_kutta_step(theta, omega, K, 0.01)
 
     r_final = np.abs(np.mean(np.exp(1j * theta)))
-    return 1 if r_final > 0.7 else 0
+    return 1 if r_final > 0.6 else 0  # Lower threshold
 
 
 def find_critical_coupling(N: int, omega_std: float = 0.01,
@@ -2399,11 +2399,11 @@ def measure_basin_volume_robust(N: int, K: float, n_trials: int = 200) -> float:
         theta = 2 * np.pi * np.random.rand(N)
 
         # Evolve to steady state
-        for _ in range(1000):
+        for _ in range(2000):  # Increased evolution time
             theta = runge_kutta_step(theta, omega, K, 0.01)
 
         r_final = np.abs(np.mean(np.exp(1j * theta)))
-        if r_final > 0.8:
+        if r_final > 0.6:  # Lower threshold to match sync detection
             sync_count += 1
 
     return sync_count / n_trials
