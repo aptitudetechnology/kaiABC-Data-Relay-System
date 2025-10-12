@@ -265,15 +265,19 @@ def calibrate_alpha_bootstrap(N_values: List[int] = None,
     print("STEP 3: FITTING α FROM V(N) ~ exp(-α√N)")
     print("=" * 70)
     
-    # Handle V=0 or V=1 cases
+    # Handle V=0 or V=1 cases - LESS conservative for anti-aging research
     valid_indices = []
     ln_V = []
     for i, v in enumerate(V_measured):
-        if 0.01 < v < 0.99:  # Exclude extremes
+        if 0.01 < v < 0.99:  # Only exclude true extremes
             ln_V.append(np.log(v))
             valid_indices.append(i)
+        elif v >= 0.99:  # Include very high values for anti-aging analysis
+            ln_V.append(np.log(max(v - 0.001, 0.01)))  # Slight adjustment for ln()
+            valid_indices.append(i)
+            print(f"⚠️ Including N={N_values[i]} (V={v:.4f} very high - anti-aging candidate)")
         else:
-            print(f"⚠️ Excluding N={N_values[i]} (V={v:.4f} is extreme)")
+            print(f"⚠️ Excluding N={N_values[i]} (V={v:.4f} too low)")
     
     if len(valid_indices) < 2:
         print()
