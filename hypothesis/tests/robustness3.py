@@ -154,13 +154,13 @@ def find_working_k_bootstrap(N_ref: int = 10, omega_std: float = 0.01,
                            n_trials: int = 50) -> float:
     """
     Bootstrap approach: Find a working K for N_ref that gives reasonable synchronization.
-    This avoids the K_c detection issues and provides a stable reference point.
+    Based on research paper insights: try both positive and negative couplings.
     """
     print(f"╔{'═'*70}╗")
     print("║            BOOTSTRAP CALIBRATION FROM WORKING POINT                ║")
     print(f"╚{'═'*70}╝")
     print()
-    print(f"Quick mode: 3 N values, {n_trials} trials each")
+    print(f"Full mode: {len([10,20,30,50])} N values, {n_trials} trials each")
     print()
     
     print("=" * 70)
@@ -168,11 +168,13 @@ def find_working_k_bootstrap(N_ref: int = 10, omega_std: float = 0.01,
     print("=" * 70)
     print()
     
-    # Test a range of K values to find one that works
-    K_test_values = [0.050, 0.100, 0.150, 0.200, 0.250, 0.300, 0.400, 0.500]
+    # Test a much wider range of K values, including negative (inspired by research paper)
+    K_test_values = [0.001, 0.005, 0.010, 0.025, 0.050, 0.100, 0.150, 0.200, 
+                    0.300, 0.400, 0.500, 0.750, 1.000, 1.500, 2.000,
+                    -0.050, -0.100, -0.200, -0.300]  # Negative couplings
     
-    print("Testing K values:")
-    print("-" * 40)
+    print("Testing K values (including negative couplings from research paper):")
+    print("-" * 60)
     
     best_K = 0.050
     best_sync_prob = 0.0
@@ -183,17 +185,18 @@ def find_working_k_bootstrap(N_ref: int = 10, omega_std: float = 0.01,
             theta = 2 * np.pi * np.random.rand(N_ref)
             omega = np.random.normal(0, omega_std, N_ref)
             
-            # Much longer evolution for bootstrap
-            for _ in range(5000):  # 5x longer than before
+            # Very long evolution for bootstrap
+            for _ in range(10000):  # Even longer evolution
                 theta = runge_kutta_step(theta, omega, K, 0.01)
             
             r_final = np.abs(np.mean(np.exp(1j * theta)))
-            # Lower threshold for bootstrap
-            if r_final > 0.4:  # Much lower threshold
+            # Adaptive threshold based on research paper insights
+            threshold = 0.3 if K < 0 else 0.5  # Lower threshold for negative K
+            if r_final > threshold:
                 sync_count += 1
         
         sync_prob = sync_count / n_trials
-        print(f"K = {K:.3f}: P_sync = {sync_prob:.1%}")
+        print(f"K = {K:6.3f}: P_sync = {sync_prob:.1%}")
         
         if sync_prob > best_sync_prob:
             best_sync_prob = sync_prob
@@ -209,13 +212,13 @@ def find_working_k_bootstrap(N_ref: int = 10, omega_std: float = 0.01,
 
 def calibrate_alpha_bootstrap(N_values: List[int] = None,
                              omega_std: float = 0.01,
-                             n_trials: int = 50) -> Dict[str, Any]:
+                             n_trials: int = 100) -> Dict[str, Any]:
     """
     Bootstrap calibration: Find working K at N=10, then scale as K(N) = K_ref × √(10/N)
     This avoids K_c detection issues and provides more stable results.
     """
     if N_values is None:
-        N_values = [10, 20, 30]
+        N_values = [10, 20, 30, 50]  # Full mode N values
     
     # Step 1: Find working K for N=10
     K_ref = find_working_k_bootstrap(omega_std=omega_std, n_trials=n_trials)
@@ -223,7 +226,7 @@ def calibrate_alpha_bootstrap(N_values: List[int] = None,
     print("=" * 70)
     print("STEP 2: MEASURING BASIN VOLUMES WITH SCALED K")
     print("=" * 70)
-    print(f"Using K_c scaling: K(N) = {K_ref:.3f} × √(10/N)")
+    print(f"Using bootstrap scaling: K(N) = {K_ref:.3f} × √(10/N)")
     print()
     
     V_measured = []
@@ -323,17 +326,19 @@ def measure_basin_volume_bootstrap(N: int, K: float, n_trials: int = 100,
     """Measure basin volume with longer evolution for bootstrap approach."""
     sync_count = 0
     
+    # Adaptive threshold based on coupling sign (research paper insight)
+    threshold = 0.3 if K < 0 else 0.5
+    
     for trial in range(n_trials):
         theta = 2 * np.pi * np.random.rand(N)
         omega = np.random.normal(0, omega_std, N)
         
-        # Much longer evolution for bootstrap
-        for _ in range(5000):  # 5x longer evolution
+        # Very long evolution for bootstrap
+        for _ in range(10000):  # Even longer evolution
             theta = runge_kutta_step(theta, omega, K, 0.01)
         
-        # Lower threshold for bootstrap
         r_final = np.abs(np.mean(np.exp(1j * theta)))
-        if r_final > 0.4:  # Lower threshold to match bootstrap
+        if r_final > threshold:
             sync_count += 1
     
     volume = sync_count / n_trials
