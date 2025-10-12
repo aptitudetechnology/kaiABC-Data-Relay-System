@@ -1974,20 +1974,25 @@ def parallel_transport(theta_start: np.ndarray, vector: np.ndarray,
 def compute_christoffel_term(theta: np.ndarray, vector: np.ndarray,
                               K: float, omega: np.ndarray) -> np.ndarray:
     """
-    Compute Christoffel symbol contribution to parallel transport.
-
-    Γ^k_{ij} ∂_i g_jk where g is the metric tensor.
+    Compute Christoffel symbol contribution for parallel transport.
+    
+    For Kuramoto on T^N with coupling-induced metric, this is approximate.
     """
     N = len(theta)
     term = np.zeros(N)
-
-    # Simplified: Use coupling structure to approximate connection
+    
+    # Metric tensor g_ij ≈ δ_ij + (K/N) cos(θ_i - θ_j)
+    # Connection: Γ^k_{ij} ≈ -(K/2N) sin(θ_i - θ_j) δ_{jk}
+    
     for i in range(N):
-        coupling_effect = (K / N) * np.sum(
-            np.cos(theta - theta[i]) * vector
-        )
-        term[i] = coupling_effect
-
+        # ∇_X V^i ≈ Σ_j Γ^i_{jk} V^j X^k
+        connection_term = 0
+        for j in range(N):
+            metric_derivative = -(K / (2*N)) * np.sin(theta[i] - theta[j])
+            connection_term += metric_derivative * vector[j]
+        
+        term[i] = connection_term
+    
     return term
 
 
