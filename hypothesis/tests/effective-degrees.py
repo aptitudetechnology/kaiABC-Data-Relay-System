@@ -497,6 +497,7 @@ def test_effective_dof_scaling(N_values: List[int] = None, trials_per_N: int = 1
         'hypothesis': 'Effective DOF Scaling',
         'prediction': 'N_eff ~ N^0.5',
         'measured_exponent': nu,
+        'amplitude': fit_result['amplitude'],
         'measured_error': nu_error,
         'r_squared': fit_result['r_squared'],
         'p_value': fit_result['p_value'],
