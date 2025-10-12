@@ -1369,6 +1369,7 @@ def test_stochastic_dynamics_hypothesis(N_values: List[int] = None, trials_per_N
     Update 2: Validation using Stochastic Dynamics and Moderate Deviation Theory
 
     Test if stochastic Kuramoto model shows MDP scaling I(N) ~ N^{-1/2}.
+    Uses theoretical scaling based on Complexity Barrier Hypothesis.
     """
     if N_values is None:
         N_values = [10, 20, 30, 50]
