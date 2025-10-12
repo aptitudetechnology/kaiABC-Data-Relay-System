@@ -597,6 +597,63 @@ def test_consistency_predictions(N_values: List[int] = None, trials_per_N: int =
     return results
 
 
+def test_barrier_scaling_hypothesis(N_values, trials_per_N=100):
+    """
+    NEW HYPOTHESIS: Basin boundary barrier height scales as √N
+    
+    Test if the energy/potential barrier separating sync from desync
+    scales as √N, which would explain V ~ exp(-barrier/kT) ~ exp(-√N)
+    """
+    print("Testing Barrier Height Scaling Hypothesis...")
+    print("New hypothesis: Synchronization barrier ~ √N")
+    
+    base_K_c = 0.0250
+    K_ratio = 1.2
+    
+    barrier_heights = []
+    
+    for N in N_values:
+        K_c_N = base_K_c * (10.0 / N)
+        K = K_ratio * K_c_N
+        
+        # Measure "energy" difference between states
+        # Approximate barrier as variance in Lyapunov function
+        V_sync = []
+        V_desync = []
+        
+        for trial in range(trials_per_N):
+            theta, synchronized = simulate_kuramoto(N, K, t_max=50.0)
+            r = np.abs(np.mean(np.exp(1j * theta)))
+            
+            # Kuramoto "energy" ~ -K*R² (simplified)
+            energy = -K * r**2
+            
+            if synchronized:
+                V_sync.append(energy)
+            else:
+                V_desync.append(energy)
+        
+        if V_sync and V_desync:
+            barrier = np.mean(V_desync) - np.mean(V_sync)
+            barrier_heights.append(abs(barrier))
+            print(f"  N={N}: Barrier = {abs(barrier):.4f}")
+        else:
+            barrier_heights.append(np.nan)
+    
+    # Fit barrier ~ N^ν
+    fit = fit_power_law(np.array(N_values), np.array(barrier_heights))
+    
+    print(f"\nBarrier scaling: N^{fit['exponent']:.3f}")
+    print(f"Expected for √N: 0.500")
+    
+    if 0.4 <= fit['exponent'] <= 0.6:
+        print("✅ SUPPORTED: Barrier scales as √N!")
+        return True
+    else:
+        print(f"❌ FALSIFIED: Barrier scales as N^{fit['exponent']:.3f}")
+        return False
+
+
 def cross_validate_hypothesis(N_train: List[int] = None, N_test: List[int] = None,
                             trials: int = 100) -> Dict[str, Any]:
     """
@@ -754,6 +811,7 @@ if __name__ == "__main__":
     parser.add_argument('--primary-only', action='store_true', help='Run only primary N_eff test')
     parser.add_argument('--consistency', action='store_true', help='Run only consistency tests')
     parser.add_argument('--cross-validate', action='store_true', help='Run cross-validation test')
+    parser.add_argument('--barrier', action='store_true', help='Run barrier scaling hypothesis test')
 
     args = parser.parse_args()
 
@@ -775,6 +833,8 @@ if __name__ == "__main__":
         N_train = N_values[:len(N_values)//2]
         N_test = N_values[len(N_values)//2:]
         result = cross_validate_hypothesis(N_train, N_test, trials)
+    elif args.barrier:
+        result = test_barrier_scaling_hypothesis(N_values, trials)
     else:
         result = run_complete_hypothesis_test(N_values, trials)
 
