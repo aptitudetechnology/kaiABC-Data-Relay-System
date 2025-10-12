@@ -2324,6 +2324,7 @@ def _single_basin_volume_trial(N: int, K: float, worker_id: int = 0):
     
     for _ in range(n_local_trials):
         theta = 2 * np.pi * np.random.rand(N)
+        omega = np.random.normal(0, 0.005, N)  # Smaller variance for easier synchronization
         
         # Evolve to steady state
         for _ in range(2000):  # Increased evolution time
