@@ -157,6 +157,59 @@ def _single_eigenvalue_trial(N: int, K: float, _=None):
     return abs(gap)
 
 
+# Worker functions for curvature measurements (SMP support)
+def _single_curvature_sample(N: int, K: float, _=None):
+    """Worker function for parallel curvature measurement."""
+    omega = np.random.normal(0, 0.01, N)
+    theta_boundary = find_basin_boundary_point(N, K, omega)
+
+    if theta_boundary is None:
+        return np.nan
+
+    # Compute Hessian of Lyapunov function
+    hessian = compute_lyapunov_hessian(theta_boundary, K, omega)
+
+    # Compute gradient
+    gradient = compute_lyapunov_gradient(theta_boundary, K, omega)
+    grad_norm = np.linalg.norm(gradient)
+
+    if grad_norm < 1e-8:
+        return np.nan
+
+    # Mean curvature: H = -trace(Hessian_projected) / |∇L|
+    projection = np.eye(N) - np.outer(gradient, gradient) / grad_norm**2
+    hessian_projected = projection @ hessian @ projection
+
+    mean_curvature = -np.trace(hessian_projected) / grad_norm
+
+    return mean_curvature if np.isfinite(mean_curvature) else np.nan
+
+
+def _single_kc_trial(N: int, _=None):
+    """Worker function for parallel K_c measurement."""
+    return find_critical_coupling(N, omega_std=0.01, n_trials=20)
+
+
+def _single_basin_volume_trial(N: int, K: float, _=None):
+    """Worker function for parallel basin volume measurement."""
+    omega = np.random.normal(0, 0.01, N)
+    sync_count = 0
+    n_trials = 50  # Reduced for worker function
+
+    for _ in range(n_trials):
+        theta = 2 * np.pi * np.random.rand(N)
+
+        # Evolve to steady state
+        for _ in range(1000):
+            theta = runge_kutta_step(theta, omega, K, 0.01)
+
+        r_final = np.abs(np.mean(np.exp(1j * theta)))
+        if r_final > 0.8:
+            sync_count += 1
+
+    return sync_count / n_trials
+
+
 def kuramoto_model(theta: np.ndarray, omega: np.ndarray, K: float, dt: float = 0.01) -> np.ndarray:
     """
     Compute Kuramoto model derivatives.
@@ -2137,6 +2190,7 @@ def test_phase_space_curvature_hypothesis(N_values: List[int] = None,
     print("CORRECTED: Phase Space Curvature Mechanism Test")
     print("=" * 70)
     print("Hypothesis: Basin volume V ~ exp(-ΣH_i) where H = mean curvature")
+    print(f"Using SMP: {min(mp.cpu_count(), 8)} CPU cores")
     print()
 
     results = {
@@ -2147,15 +2201,20 @@ def test_phase_space_curvature_hypothesis(N_values: List[int] = None,
         'predicted_volumes': []
     }
 
-    # Step 1: Measure K_c for each N (no assumptions!)
+    # Step 1: Measure K_c for each N (no assumptions!) - SMP enabled
     print("Step 1: Measuring critical coupling K_c(N)")
     print("-" * 50)
-    for N in N_values:
-        K_c = find_critical_coupling(N)
-        results['K_c_values'].append(K_c)
+    n_cores = min(mp.cpu_count(), 8)
+
+    # Parallel K_c measurement
+    with mp.Pool(processes=n_cores) as pool:
+        K_c_results = pool.map(_single_kc_trial, N_values)
+
+    results['K_c_values'] = K_c_results
+    for N, K_c in zip(N_values, K_c_results):
         print(f"  N={N}: K_c = {K_c:.4f}")
 
-    # Step 2: Measure curvature at fixed margin above K_c
+    # Step 2: Measure curvature at fixed margin above K_c - SMP enabled
     print("\nStep 2: Measuring mean curvature H(N)")
     print("-" * 50)
     K_margin = 1.2  # Fixed margin
@@ -2163,18 +2222,31 @@ def test_phase_space_curvature_hypothesis(N_values: List[int] = None,
     for i, N in enumerate(N_values):
         K = K_margin * results['K_c_values'][i]
 
-        # Use robust Lyapunov method
-        H = measure_mean_curvature_via_lyapunov(N, K, n_samples=trials_per_N)
-        results['mean_curvatures'].append(H)
-        print(f"  N={N}: H = {H:.6f} (K={K:.4f})")
+        # Parallel curvature measurement
+        worker_func = functools.partial(_single_curvature_sample, N, K)
+        with mp.Pool(processes=n_cores) as pool:
+            curvature_samples = pool.map(worker_func, range(trials_per_N))
 
-    # Step 3: Measure actual basin volumes
+        # Filter valid samples
+        valid_curvatures = [c for c in curvature_samples if np.isfinite(c)]
+        H = np.mean(valid_curvatures) if valid_curvatures else np.nan
+
+        results['mean_curvatures'].append(H)
+        print(f"  N={N}: H = {H:.6f} (K={K:.4f}, {len(valid_curvatures)}/{trials_per_N} valid)")
+
+    # Step 3: Measure actual basin volumes - SMP enabled
     print("\nStep 3: Measuring basin volumes V(N)")
     print("-" * 50)
 
     for i, N in enumerate(N_values):
         K = K_margin * results['K_c_values'][i]
-        V = measure_basin_volume_robust(N, K, n_trials=trials_per_N*2)
+
+        # Parallel basin volume measurement
+        n_workers = max(1, (trials_per_N * 2) // 50)  # Each worker does 50 trials
+        with mp.Pool(processes=min(n_cores, n_workers)) as pool:
+            volume_samples = pool.map(worker_func, range(n_workers))
+
+        V = np.mean(volume_samples) if volume_samples else 0.0
         results['basin_volumes'].append(V)
         print(f"  N={N}: V = {V:.4f}")
 
@@ -2243,29 +2315,35 @@ def test_phase_space_curvature_hypothesis(N_values: List[int] = None,
     }
 
 
+def _single_sync_trial(N: int, K: float, omega_std: float, _=None):
+    """Worker function for parallel sync probability trials."""
+    theta = 2 * np.pi * np.random.rand(N)
+    omega = np.random.normal(0, omega_std, N)
+
+    # Evolve
+    for _ in range(500):
+        theta = runge_kutta_step(theta, omega, K, 0.01)
+
+    r_final = np.abs(np.mean(np.exp(1j * theta)))
+    return 1 if r_final > 0.7 else 0
+
+
 def find_critical_coupling(N: int, omega_std: float = 0.01,
                           n_trials: int = 50) -> float:
-    """Find K_c where synchronization probability ≈ 50%"""
+    """Find K_c where synchronization probability ≈ 50% - SMP enabled"""
     # Use binary search (simplified from robustness4.py)
     K_low, K_high = 0.001, 0.5
+    n_cores = min(mp.cpu_count(), 8)
 
     for _ in range(15):  # Binary search iterations
         K_mid = (K_low + K_high) / 2
 
-        sync_count = 0
-        for _ in range(n_trials):
-            theta = 2 * np.pi * np.random.rand(N)
-            omega = np.random.normal(0, omega_std, N)
+        # Parallel sync trials
+        worker_func = functools.partial(_single_sync_trial, N, K_mid, omega_std)
+        with mp.Pool(processes=n_cores) as pool:
+            sync_results = pool.map(worker_func, range(n_trials))
 
-            # Evolve
-            for _ in range(500):
-                theta = runge_kutta_step(theta, omega, K_mid, 0.01)
-
-            r_final = np.abs(np.mean(np.exp(1j * theta)))
-            if r_final > 0.7:
-                sync_count += 1
-
-        sync_prob = sync_count / n_trials
+        sync_prob = sum(sync_results) / len(sync_results)
 
         if sync_prob < 0.4:
             K_low = K_mid
