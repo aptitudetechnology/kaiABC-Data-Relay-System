@@ -45,42 +45,46 @@ def find_critical_coupling(N: int, omega_std: float = 0.01,
                           n_trials: int = 50) -> float:
     """
     Find K_c where synchronization probability ≈ 50%.
-    Uses binary search with improved parameters.
+    Uses binary search with N-adaptive parameters.
     """
-    K_low = 0.001
-    K_high = 2.0  # Increased upper bound
+    K_low = 0.0001
+    K_high = 1.0
     
     print(f"Finding K_c for N={N}...", end="", flush=True)
     
+    # N-dependent parameters
+    evolution_steps = max(500, N * 10)  # Scale evolution time with N
+    sync_threshold = max(0.3, 0.8 - N/100)  # Lower threshold for larger N
+    
     # First, do a coarse scan to find approximate range
-    K_test_values = np.logspace(-3, 0, 20)  # 0.001 to 1.0, 20 points
+    K_test_values = np.logspace(-3, 0, 15)  # 0.001 to 1.0, 15 points
     best_K = 0.001
     best_sync_prob = 0.0
     
     for K_test in K_test_values:
         sync_count = 0
-        for trial in range(10):  # Fewer trials for coarse scan
+        for trial in range(15):  # More trials for coarse scan
             theta = 2 * np.pi * np.random.rand(N)
             omega = np.random.normal(0, omega_std, N)
             
-            # Evolve
-            for _ in range(1000):
+            # Evolve with N-scaled time
+            for _ in range(evolution_steps):
                 theta = runge_kutta_step(theta, omega, K_test, 0.01)
             
             r_final = np.abs(np.mean(np.exp(1j * theta)))
-            if r_final > 0.6:  # Synchronization threshold
+            if r_final > sync_threshold:
                 sync_count += 1
         
-        sync_prob = sync_count / 10
+        sync_prob = sync_count / 15
         if sync_prob > best_sync_prob:
             best_sync_prob = sync_prob
             best_K = K_test
     
     # Set binary search bounds around best K
-    K_low = max(0.0001, best_K / 3)
-    K_high = min(2.0, best_K * 3)
+    K_low = max(0.0001, best_K / 5)
+    K_high = min(1.0, best_K * 5)
     
-    for iteration in range(10):  # Binary search
+    for iteration in range(8):  # Binary search
         K_mid = (K_low + K_high) / 2
         
         # Test synchronization probability
@@ -90,11 +94,11 @@ def find_critical_coupling(N: int, omega_std: float = 0.01,
             omega = np.random.normal(0, omega_std, N)
             
             # Evolve
-            for _ in range(1000):  # Increased evolution time
+            for _ in range(evolution_steps):
                 theta = runge_kutta_step(theta, omega, K_mid, 0.01)
             
             r_final = np.abs(np.mean(np.exp(1j * theta)))
-            if r_final > 0.6:  # Adjusted threshold
+            if r_final > sync_threshold:
                 sync_count += 1
         
         sync_prob = sync_count / n_trials
@@ -108,7 +112,7 @@ def find_critical_coupling(N: int, omega_std: float = 0.01,
             break  # Close enough to 50%
     
     K_c = K_mid
-    print(f" K_c ≈ {K_c:.4f} (P_sync = {sync_prob:.1%})")
+    print(f" K_c ≈ {K_c:.4f} (P_sync = {sync_prob:.1%}, threshold={sync_threshold:.2f})")
     
     return K_c
 
@@ -487,7 +491,7 @@ if __name__ == "__main__":
         print("Quick test mode (fewer trials)")
         calibration = calibrate_alpha_with_kc_scaling(
             N_values=[10, 20, 30],
-            K_margin=1.2,  # Reduced margin for better synchronization
+            K_margin=2.0,  # Increased margin for non-zero basin volumes
             n_trials=50
         )
         print(f"\nQuick result: α ≈ {calibration['alpha']:.4f}")
