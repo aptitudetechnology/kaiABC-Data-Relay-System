@@ -358,47 +358,6 @@ def measure_basin_volume_bootstrap(N: int, K: float, n_trials: int = 100,
     error = np.sqrt(volume * (1 - volume) / n_trials) if volume > 0 else 0
     
     return volume, error
-    print(f"Fitted: ln(V) = {slope:.4f}√N + {intercept:.4f}")
-    print(f"α = {alpha_fitted:.4f}")
-    print(f"R² = {r_squared:.3f}")
-    print()
-    print("Fit quality check:")
-    print("-" * 40)
-    print(f"{'N':>4} {'V_measured':>12} {'V_predicted':>12} {'Error':>10}")
-    print("-" * 40)
-    for i, N in enumerate(N_values):
-        V_m = V_measured[i]
-        V_p = V_predicted[i]
-        err = abs(V_m - V_p)
-        print(f"{N:4d} {V_m:12.4f} {V_p:12.4f} {err:10.4f}")
-    print()
-    
-    if r_squared > 0.9:
-        verdict = "✅ EXCELLENT FIT: High confidence in α"
-    elif r_squared > 0.7:
-        verdict = "⚠️ MODERATE FIT: Use α with caution"
-    else:
-        verdict = "❌ POOR FIT: V(N) may not follow exp(-α√N)"
-    
-    print(verdict)
-    
-    return {
-        'alpha': max(0.01, alpha_fitted),
-        'r_squared': r_squared,
-        'slope': slope,
-        'intercept': intercept,
-        'K_margin': K_margin,
-        'K_c_values': K_c_values,
-        'data': {
-            'N': N_values,
-            'K_c': K_c_values,
-            'K_test': K_test_values,
-            'V': V_measured,
-            'V_err': V_errors,
-            'V_pred': V_predicted,
-            'valid_indices': valid_indices
-        }
-    }
 
 
 def inverse_design_formula(V_target: float, alpha: float) -> float:
