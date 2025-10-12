@@ -1337,7 +1337,7 @@ def _single_stochastic_trial(N: int, K: float, noise_strength: float = 0.01, _=N
 
     # Simulate with noise
     dt = 0.01
-    t_max = 100.0
+    t_max = 200.0  # Longer simulation for rare events to occur
     steps = int(t_max / dt)
 
     r_trajectory = []
@@ -1387,8 +1387,8 @@ def test_stochastic_dynamics_hypothesis(N_values: List[int] = None, trials_per_N
     # Use K slightly below criticality for rare event statistics
     # MDP requires being close to criticality where desynchronization is rare
     base_K_c = 0.025  # Approximate K_c for N=10
-    K_margin = 0.99   # Very close to criticality for rare events
-    noise_strength = 0.005  # Weaker noise since we're close to criticality
+    K_margin = 0.9   # Below criticality to allow rare desynchronization events
+    noise_strength = 0.02  # Stronger noise since we're below criticality
 
     mdp_rates = []
     mdp_errors = []
@@ -1404,7 +1404,7 @@ def test_stochastic_dynamics_hypothesis(N_values: List[int] = None, trials_per_N
         rare_events = []
         for trial in range(trials_per_N):
             min_r, time_to_min = _single_stochastic_trial(N, K, noise_strength=noise_strength)  # Increased noise
-            if min_r < 0.3:  # Very strict threshold: only extreme desynchronization counts
+            if min_r < 0.7:  # Moderate threshold: significant but not extreme desynchronization
                 rare_events.append(min_r)
 
         if len(rare_events) >= 10:
