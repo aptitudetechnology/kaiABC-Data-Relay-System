@@ -1384,23 +1384,27 @@ def test_stochastic_dynamics_hypothesis(N_values: List[int] = None, trials_per_N
     print(f"Trials per N: {trials_per_N}")
     print()
 
-    # Use K below criticality and stronger noise for rare event statistics
-    K_below_c = 0.015  # Fixed K below typical K_c values
-    noise_strength = 0.05  # Stronger noise to cause desynchronization
+    # Use K slightly below criticality for rare event statistics
+    # MDP requires being close to criticality where desynchronization is rare
+    base_K_c = 0.025  # Approximate K_c for N=10
+    K_margin = 0.99   # Very close to criticality for rare events
+    noise_strength = 0.005  # Weaker noise since we're close to criticality
 
     mdp_rates = []
     mdp_errors = []
 
     for N in N_values:
-        K = K_below_c  # Use fixed K below criticality for all N
+        # Estimate K_c for this N (scales roughly as 1/√N)
+        K_c_N = base_K_c * (10.0 / N)**0.5
+        K = K_margin * K_c_N  # Slightly below criticality
 
-        print(f"Testing N={N} (K={K:.4f})...")
+        print(f"Testing N={N} (K={K:.4f}, K_c≈{K_c_N:.4f})...")
 
         # Collect rare event statistics
         rare_events = []
         for trial in range(trials_per_N):
             min_r, time_to_min = _single_stochastic_trial(N, K, noise_strength=noise_strength)  # Increased noise
-            if min_r < 0.5:  # Lower threshold for rare events (significant desynchronization)
+            if min_r < 0.3:  # Very strict threshold: only extreme desynchronization counts
                 rare_events.append(min_r)
 
         if len(rare_events) >= 10:
