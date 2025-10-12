@@ -7,6 +7,8 @@ The key insight: α must be measured from data first!
 
 import numpy as np
 from typing import Tuple, Dict, Any, List
+import multiprocessing as mp
+import functools
 
 def runge_kutta_step(theta, omega, K, dt):
     """4th order RK for Kuramoto model."""
@@ -21,24 +23,29 @@ def runge_kutta_step(theta, omega, K, dt):
     return theta + (dt/6)*(k1 + 2*k2 + 2*k3 + k4)
 
 
+def _single_basin_trial(N: int, K: float, omega_std: float, _=None):
+    """Worker function for single basin volume trial."""
+    theta = 2 * np.pi * np.random.rand(N)
+    omega = np.random.normal(0, omega_std, N)
+    
+    # Evolve system
+    for _ in range(500):
+        theta = runge_kutta_step(theta, omega, K, 0.01)
+    
+    # Check synchronization
+    r_final = np.abs(np.mean(np.exp(1j * theta)))
+    return 1 if r_final > 0.8 else 0
+
+
 def measure_basin_volume(N: int, K: float, n_trials: int = 1000,
                         omega_std: float = 0.01) -> Tuple[float, float]:
-    """Measure basin volume via Monte Carlo."""
-    sync_count = 0
+    """Measure basin volume via Monte Carlo with multiprocessing."""
+    # Use multiprocessing for parallel trials
+    worker_func = functools.partial(_single_basin_trial, N, K, omega_std)
+    with mp.Pool(processes=min(mp.cpu_count(), 8)) as pool:
+        results = pool.map(worker_func, range(n_trials))
     
-    for trial in range(n_trials):
-        theta = 2 * np.pi * np.random.rand(N)
-        omega = np.random.normal(0, omega_std, N)
-        
-        # Evolve system
-        for _ in range(500):
-            theta = runge_kutta_step(theta, omega, K, 0.01)
-        
-        # Check synchronization
-        r_final = np.abs(np.mean(np.exp(1j * theta)))
-        if r_final > 0.8:
-            sync_count += 1
-    
+    sync_count = sum(results)
     volume = sync_count / n_trials
     error = np.sqrt(volume * (1 - volume) / n_trials)
     
@@ -282,6 +289,7 @@ def run_complete_analysis():
     print("║" + " " * 10 + "ROBUSTNESS ANALYSIS SUITE" + " " * 23 + "║")
     print("║" + " " * 8 + "Inverse Basin Design Formula" + " " * 22 + "║")
     print("╚" + "═" * 58 + "╝")
+    print(f"Using multiprocessing with {min(mp.cpu_count(), 8)} CPU cores")
     print()
     
     # Step 1: Calibrate α
@@ -315,6 +323,7 @@ def run_complete_analysis():
     print(f"Validation success: {validation['success_rate']:.1%}")
     print(f"Mean prediction error: {validation['mean_rel_error']:.1%}")
     print(f"\nKaiABC Design: N ≤ {kaiabc['N_design']} nodes for 95% reliability")
+    print(f"Multiprocessing: {min(mp.cpu_count(), 8)} CPU cores utilized")
     print()
     
     if validation['success_rate'] > 0.8:
