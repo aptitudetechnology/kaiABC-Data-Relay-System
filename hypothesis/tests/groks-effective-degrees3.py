@@ -2242,6 +2242,7 @@ def test_phase_space_curvature_hypothesis(N_values: List[int] = None,
         K = K_margin * results['K_c_values'][i]
 
         # Parallel basin volume measurement
+        worker_func = functools.partial(_single_basin_volume_trial, N, K)
         n_workers = max(1, (trials_per_N * 2) // 50)  # Each worker does 50 trials
         with mp.Pool(processes=min(n_cores, n_workers)) as pool:
             volume_samples = pool.map(worker_func, range(n_workers))
@@ -2308,6 +2309,7 @@ def test_phase_space_curvature_hypothesis(N_values: List[int] = None,
 
     return {
         **results,
+        'theory': 'Phase Space Curvature (H ~ N^α)',
         'H_scaling_exponent': alpha_H,
         'mechanistic_coefficient': B_fitted,
         'prediction_r_squared': r_squared,
@@ -2315,13 +2317,35 @@ def test_phase_space_curvature_hypothesis(N_values: List[int] = None,
     }
 
 
+def _single_basin_volume_trial(N: int, K: float, worker_id: int = 0):
+    """Worker function for parallel basin volume measurement."""
+    # Each worker does 50 trials
+    n_local_trials = 50
+    sync_count = 0
+    omega = np.random.normal(0, 0.01, N)
+    
+    for _ in range(n_local_trials):
+        theta = 2 * np.pi * np.random.rand(N)
+        
+        # Evolve to steady state
+        for _ in range(1000):
+            theta = runge_kutta_step(theta, omega, K, 0.01)
+        
+        r_final = np.abs(np.mean(np.exp(1j * theta)))
+        if r_final > 0.8:
+            sync_count += 1
+    
+    return sync_count / n_local_trials
+
+
 def _single_sync_trial(N: int, K: float, omega_std: float, _=None):
     """Worker function for parallel sync probability trials."""
     theta = 2 * np.pi * np.random.rand(N)
     omega = np.random.normal(0, omega_std, N)
 
-    # Evolve
-    for _ in range(500):
+    # Evolve longer for larger N
+    n_steps = min(2000, 100 + 20 * N)
+    for _ in range(n_steps):
         theta = runge_kutta_step(theta, omega, K, 0.01)
 
     r_final = np.abs(np.mean(np.exp(1j * theta)))
@@ -2332,7 +2356,7 @@ def find_critical_coupling(N: int, omega_std: float = 0.01,
                           n_trials: int = 50, use_multiprocessing: bool = True) -> float:
     """Find K_c where synchronization probability ≈ 50% - SMP enabled"""
     # Use binary search (simplified from robustness4.py)
-    K_low, K_high = 0.001, 0.5
+    K_low, K_high = 0.001, 2.0  # Wider range
     
     if use_multiprocessing:
         n_cores = min(mp.cpu_count(), 8)
