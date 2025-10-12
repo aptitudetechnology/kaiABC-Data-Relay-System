@@ -187,7 +187,7 @@ def _single_curvature_sample(N: int, K: float, _=None):
 
 def _single_kc_trial(N: int, _=None):
     """Worker function for parallel K_c measurement."""
-    return find_critical_coupling(N, omega_std=0.01, n_trials=20)
+    return find_critical_coupling(N, omega_std=0.01, n_trials=20, use_multiprocessing=False)
 
 
 def _single_basin_volume_trial(N: int, K: float, _=None):
@@ -2329,19 +2329,30 @@ def _single_sync_trial(N: int, K: float, omega_std: float, _=None):
 
 
 def find_critical_coupling(N: int, omega_std: float = 0.01,
-                          n_trials: int = 50) -> float:
+                          n_trials: int = 50, use_multiprocessing: bool = True) -> float:
     """Find K_c where synchronization probability ≈ 50% - SMP enabled"""
     # Use binary search (simplified from robustness4.py)
     K_low, K_high = 0.001, 0.5
-    n_cores = min(mp.cpu_count(), 8)
+    
+    if use_multiprocessing:
+        n_cores = min(mp.cpu_count(), 8)
+    else:
+        n_cores = 1  # Sequential processing
 
     for _ in range(15):  # Binary search iterations
         K_mid = (K_low + K_high) / 2
 
-        # Parallel sync trials
-        worker_func = functools.partial(_single_sync_trial, N, K_mid, omega_std)
-        with mp.Pool(processes=n_cores) as pool:
-            sync_results = pool.map(worker_func, range(n_trials))
+        if use_multiprocessing:
+            # Parallel sync trials
+            worker_func = functools.partial(_single_sync_trial, N, K_mid, omega_std)
+            with mp.Pool(processes=n_cores) as pool:
+                sync_results = pool.map(worker_func, range(n_trials))
+        else:
+            # Sequential sync trials
+            sync_results = []
+            for _ in range(n_trials):
+                result = _single_sync_trial(N, K_mid, omega_std, None)
+                sync_results.append(result)
 
         sync_prob = sum(sync_results) / len(sync_results)
 
