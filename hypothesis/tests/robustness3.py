@@ -14,8 +14,8 @@ N-ADAPTIVE PARAMETERS: Based on research paper insights about multi-attractor sy
 - Sync threshold adapts to N: sync_threshold = max(0.3, 0.8 - N/100)
 - Frequency dispersion increases with N: ω_std_adaptive = ω_std × (1 + N/200)
 
-SMP SUPPORT: Uses multiprocessing for parallel computation of trials
-and N-value sweeps. Automatically scales to available CPU cores.
+SMP SUPPORT: Uses multiprocessing Pool for parallel basin volume measurements.
+Automatically scales to available CPU cores for faster computation.
 """
 
 import numpy as np
@@ -35,6 +35,13 @@ def _measure_single_N_mp(args):
     K_test = _global_K_margin * _global_K_c_values[i]
     V, V_err = measure_basin_volume(N, K_test, _global_n_trials, _global_omega_std)
     return i, V, V_err, K_test
+
+def _measure_single_N_bootstrap_mp(args):
+    """Module-level function for multiprocessing bootstrap basin volume measurement."""
+    i, N = args
+    K_test = _global_K_c_values[i]  # For bootstrap, K_c_values are actually K_test_values
+    V, V_err = measure_basin_volume_bootstrap(N, K_test, _global_n_trials, _global_omega_std)
+    return i, V, V_err
 
 def runge_kutta_step(theta, omega, K, dt):
     """4th order RK for Kuramoto model."""
@@ -227,25 +234,31 @@ def calibrate_alpha_bootstrap(N_values: List[int] = None,
     print("STEP 2: MEASURING BASIN VOLUMES WITH SCALED K")
     print("=" * 70)
     print(f"Using bootstrap scaling: K(N) = {K_ref:.3f} × √(10/N)")
+    print(f"🔄 SMP: Using {min(mp.cpu_count(), len(N_values))} CPU cores for parallel processing")
     print()
     
-    V_measured = []
-    V_errors = []
-    K_test_values = []
+    # SMP-enabled parallel processing
+    K_test_values = [K_ref * np.sqrt(10.0 / N) for N in N_values]
     
-    for N in N_values:
-        # Scale K as K(N) = K_ref × √(N_ref/N)
-        K_test = K_ref * np.sqrt(10.0 / N)
-        K_test_values.append(K_test)
-        
-        print(f"N={N} (K={K_test:.4f}): ", end="", flush=True)
-        
-        # Measure basin volume with longer evolution
-        V, V_err = measure_basin_volume_bootstrap(N, K_test, n_trials, omega_std)
-        V_measured.append(V)
-        V_errors.append(V_err)
-        
-        print(f"V = {V:.4f} ± {V_err:.4f}")
+    # Set global variables for multiprocessing
+    global _global_K_c_values, _global_K_margin, _global_n_trials, _global_omega_std
+    _global_K_c_values = K_test_values  # For bootstrap, K_c_values are actually K_test_values
+    _global_K_margin = 1.0  # Not used in bootstrap, but set for compatibility
+    _global_n_trials = n_trials
+    _global_omega_std = omega_std
+    
+    # Parallel processing of basin volume measurements
+    with mp.Pool(processes=min(mp.cpu_count(), len(N_values))) as pool:
+        results = pool.map(_measure_single_N_bootstrap_mp, enumerate(N_values))
+    
+    # Sort results by index
+    results.sort(key=lambda x: x[0])
+    
+    V_measured = [r[1] for r in results]
+    V_errors = [r[2] for r in results]
+    
+    for i, N in enumerate(N_values):
+        print(f"N={N} (K={K_test_values[i]:.4f}): V = {V_measured[i]:.4f} ± {V_errors[i]:.4f}")
     
     print()
     print("=" * 70)
