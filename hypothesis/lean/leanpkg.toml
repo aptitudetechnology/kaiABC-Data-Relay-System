@@ -1,0 +1,12 @@
+[package]
+name = "kuramoto-basin-scaling"
+version = "0.1.0"
+lean_version = "leanprover/lean4:nightly"
+mathlib_version = "leanprover-community/mathlib4"
+
+[dependencies]
+mathlib = { git = "https://github.com/leanprover-community/mathlib4", rev = "master" }
+
+[[lean_lib]]
+name = "KuramotoBasinScaling"
+roots = ["Kuramoto.lean", "BasinVolume.lean", "ScalingLaws.lean", "EffectiveDOF.lean", "Examples.lean"]
