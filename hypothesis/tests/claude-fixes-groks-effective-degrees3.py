@@ -1341,4 +1341,433 @@ def test_finite_size_hypothesis(N_values: List[int] = None, trials_per_N: int = 
                 sync_count += 1
 
         volume_fraction = sync_count / trials_per_N
-        basin_volumes.
+        basin_volumes.append(volume_fraction)
+        volume_errors.append(np.sqrt(volume_fraction * (1 - volume_fraction) / trials_per_N))
+
+        print(f"N={N}: V/V_total = {volume_fraction:.3f} ± {volume_errors[-1]:.3f} (K={K:.4f})")
+
+    valid_indices = [i for i, v in enumerate(basin_volumes) if v > 0]
+    if len(valid_indices) >= 3:
+        N_fit = np.array([N_values[i] for i in valid_indices])
+        ln_volumes = np.log(np.array([basin_volumes[i] for i in valid_indices]))
+
+        sqrt_N = np.sqrt(N_fit)
+        slope, intercept = np.polyfit(sqrt_N, ln_volumes, 1)
+        residuals = ln_volumes - (intercept + slope * sqrt_N)
+        r_squared = 1 - np.sum(residuals**2) / np.sum((ln_volumes - np.mean(ln_volumes))**2)
+
+        print(f"Basin volume scaling: ln(V) = {intercept:.3f} - {abs(slope):.3f}√N")
+        print(f"R² = {r_squared:.3f}")
+
+        if r_squared > 0.9:
+            verdict = "❌ FALSIFIED: Scaling too stable for finite size effects"
+        elif r_squared > 0.7:
+            verdict = "⚠️ PARTIALLY: Possible finite size effects (moderate fit)"
+        else:
+            verdict = f"✅ SUPPORTED: Inconsistent scaling suggests finite size effects (R² = {r_squared:.2f})"
+    else:
+        r_squared = 0.0
+        verdict = "❌ INSUFFICIENT DATA: Need more basin volume measurements"
+
+    print(f"Verdict: {verdict}")
+
+    return {
+        'theory': 'Finite Size Effects (scaling weakens with N)',
+        'r_squared': r_squared,
+        'verdict': verdict,
+        'N_values': N_values,
+        'basin_volumes': basin_volumes,
+        'volume_errors': volume_errors
+    }
+
+
+def test_information_bottleneck_hypothesis(N_values: List[int] = None, trials_per_N: int = 100) -> Dict[str, Any]:
+    """Hypothesis 5: Information bottleneck creates barriers."""
+    if N_values is None:
+        N_values = [10, 20, 30, 50]
+
+    print("Testing information bottleneck hypothesis...")
+    print("Measuring mutual information across basin boundaries")
+
+    base_K_c = 0.0250
+    mutual_infos = []
+    info_errors = []
+
+    for N in N_values:
+        K_c_N = base_K_c * np.sqrt(10.0 / N)
+        K = 1.2 * K_c_N  # FIXED: Scaled with N
+
+        trial_infos = []
+        for trial in range(trials_per_N):
+            theta = 2 * np.pi * np.random.rand(N)
+            omega = np.random.normal(0, 0.01, N)
+
+            boundary_theta = None
+            for _ in range(100):
+                theta = runge_kutta_step(theta, omega, K, 0.01)
+                r = np.abs(np.mean(np.exp(1j * theta)))
+                if 0.4 < r < 0.6:
+                    boundary_theta = theta.copy()
+                    break
+
+            if boundary_theta is not None:
+                half_N = N // 2
+                past_phases = boundary_theta[:half_N]
+                future_phases = boundary_theta[half_N:]
+
+                r_past = np.abs(np.mean(np.exp(1j * past_phases)))
+                r_future = np.abs(np.mean(np.exp(1j * future_phases)))
+                correlation = np.abs(np.mean(np.exp(1j * (past_phases - future_phases))))
+
+                bottleneck_strength = 1 - correlation
+                trial_infos.append(bottleneck_strength)
+
+        if trial_infos:
+            avg_info = np.mean(trial_infos)
+            mutual_infos.append(avg_info)
+            info_errors.append(np.std(trial_infos))
+            print(f"N={N}: I_bottleneck = {avg_info:.3f} ± {np.std(trial_infos):.3f} (K={K:.4f})")
+        else:
+            mutual_infos.append(np.nan)
+            info_errors.append(np.nan)
+
+    valid_indices = [i for i, i_val in enumerate(mutual_infos) if np.isfinite(i_val)]
+    if len(valid_indices) >= 3:
+        N_fit = np.array([N_values[i] for i in valid_indices])
+        info_fit = np.array([mutual_infos[i] for i in valid_indices])
+
+        fit_result = fit_power_law(N_fit, info_fit, n_bootstrap=200)
+
+        measured_exponent = fit_result['exponent']
+        measured_error = fit_result['error']
+        r_squared = fit_result['r_squared']
+
+        print(f"Information bottleneck scaling: I(N) ~ N^{measured_exponent:.3f} ± {measured_error:.3f}")
+        print(f"R² = {r_squared:.3f}")
+
+        theory_exponent = 0.5
+        exponent_diff = abs(measured_exponent - theory_exponent)
+        exponent_sigma = exponent_diff / measured_error if measured_error > 0 else float('inf')
+
+        if exponent_sigma < 2.0 and r_squared > 0.7:
+            verdict = f"✅ SUPPORTED: Information bottleneck explains scaling (σ = {exponent_sigma:.1f})"
+        elif exponent_sigma < 3.0 and r_squared > 0.5:
+            verdict = f"⚠️ PARTIALLY: Suggestive bottleneck effects (σ = {exponent_sigma:.1f})"
+        else:
+            verdict = f"❌ FALSIFIED: No bottleneck scaling (σ = {exponent_sigma:.1f})"
+    else:
+        measured_exponent = np.nan
+        measured_error = np.nan
+        r_squared = 0.0
+        verdict = "❌ INSUFFICIENT DATA: Need more information measurements"
+
+    print(f"Verdict: {verdict}")
+
+    return {
+        'theory': 'Information Bottleneck (I ~ N^{1/2})',
+        'measured_exponent': measured_exponent,
+        'measured_error': measured_error,
+        'r_squared': r_squared,
+        'verdict': verdict,
+        'N_values': N_values,
+        'mutual_infos': mutual_infos,
+        'info_errors': info_errors
+    }
+
+
+def run_alternative_hypotheses_test(N_values: List[int] = None, trials_per_N: int = 100) -> Dict[str, Any]:
+    """Test suite for alternative hypotheses."""
+    if N_values is None:
+        N_values = [10, 20, 30, 50]
+
+    print("ALTERNATIVE HYPOTHESES TEST SUITE")
+    print("=" * 70)
+    print("Testing competing explanations for V ~ exp(-√N) basin scaling")
+    print(f"N values: {N_values}")
+    print(f"Trials per N: {trials_per_N}")
+    print()
+
+    results = {}
+
+    print("\n" + "="*50)
+    print("HYPOTHESIS 1: CRITICAL SLOWING DOWN")
+    print("="*50)
+    results['critical_slowing'] = test_critical_slowing_hypothesis(N_values, trials_per_N)
+
+    print("\n" + "="*50)
+    print("HYPOTHESIS 2: PHASE SPACE CURVATURE")
+    print("="*50)
+    results['phase_space_curvature'] = test_phase_space_curvature_hypothesis_FIXED(N_values, trials_per_N)
+
+    print("\n" + "="*50)
+    print("HYPOTHESIS 3: COLLECTIVE MODE COUPLING")
+    print("="*50)
+    results['collective_modes'] = test_collective_mode_hypothesis(N_values, trials_per_N)
+
+    print("\n" + "="*50)
+    print("HYPOTHESIS 4: FINITE SIZE EFFECTS")
+    print("="*50)
+    results['finite_size'] = test_finite_size_hypothesis(N_values, trials_per_N)
+
+    print("\n" + "="*50)
+    print("HYPOTHESIS 5: INFORMATION BOTTLENECK")
+    print("="*50)
+    results['information_bottleneck'] = test_information_bottleneck_hypothesis(N_values, trials_per_N)
+
+    print("\n" + "="*70)
+    print("ALTERNATIVE HYPOTHESES SUMMARY")
+    print("="*70)
+
+    supported_hypotheses = []
+    for name, result in results.items():
+        status = "✅" if result['verdict'].startswith('✅') else "⚠️" if result['verdict'].startswith('⚠️') else "❌"
+        theory_name = result['theory'].split('(')[0].strip()
+        print(f"{status} {theory_name}: {result.get('measured_exponent', 'N/A')}")
+
+        if result['verdict'].startswith('✅'):
+            supported_hypotheses.append(name)
+
+    if supported_hypotheses:
+        print(f"\n🎯 {len(supported_hypotheses)} ALTERNATIVE HYPOTHESES SUPPORTED!")
+        print("Multiple explanations possible for the basin scaling.")
+    else:
+        print("\n❌ NO ALTERNATIVE HYPOTHESES SUPPORTED")
+
+    return results
+
+
+def run_complexity_barrier_test_suite(N_values: List[int] = None, trials_per_N: int = 100) -> Dict[str, Any]:
+    """Run all three Complexity Barrier Hypothesis tests (Updates 1, 2, 3)."""
+    if N_values is None:
+        N_values = [10, 20, 30, 50]
+
+    print("COMPLEXITY BARRIER HYPOTHESIS TEST SUITE")
+    print("=" * 70)
+    print("Testing the three predictions from the theoretical analysis")
+    print(f"N values: {N_values}")
+    print(f"Trials per N: {trials_per_N}")
+    print()
+
+    barrier_result = test_energy_barrier_scaling_hypothesis(N_values, trials_per_N//2)
+    stochastic_result = test_stochastic_dynamics_hypothesis(N_values, trials_per_N*2)
+    fractal_result = test_fractal_dimension_hypothesis(N_values, trials_per_N//5)
+
+    print("\n" + "="*70)
+    print("COMPLEXITY BARRIER HYPOTHESIS SUMMARY")
+    print("="*70)
+
+    supported_predictions = []
+    results = [barrier_result, stochastic_result, fractal_result]
+
+    for result in results:
+        status = "✅" if result['verdict'].startswith('✅') else "⚠️" if result['verdict'].startswith('⚠️') else "❌"
+        print(f"{status} {result['theory']}: {result['measured_exponent']:.3f} ± {result['measured_error']:.3f}")
+
+        if result['verdict'].startswith('✅'):
+            supported_predictions.append(result['theory'])
+
+    if len(supported_predictions) == 3:
+        print("\n🎯 ALL PREDICTIONS SUPPORTED!")
+        print("The Complexity Barrier Hypothesis is strongly validated.")
+    elif len(supported_predictions) >= 2:
+        print(f"\n🎯 {len(supported_predictions)}/3 PREDICTIONS SUPPORTED!")
+        print("Strong evidence for Complexity Barrier Hypothesis.")
+    elif len(supported_predictions) >= 1:
+        print(f"\n⚠️ {len(supported_predictions)}/3 PREDICTIONS SUPPORTED")
+        print("Partial support for Complexity Barrier Hypothesis.")
+    else:
+        print("\n❌ NO PREDICTIONS SUPPORTED")
+
+    return {
+        'barrier_scaling': barrier_result,
+        'stochastic_dynamics': stochastic_result,
+        'fractal_dimension': fractal_result,
+        'supported_predictions': supported_predictions
+    }
+
+
+def cross_validate_hypothesis(N_train: List[int] = None, N_test: List[int] = None,
+                            trials: int = 100) -> Dict[str, Any]:
+    """CROSS-VALIDATION: Train on N_train, predict N_test."""
+    if N_train is None:
+        N_train = [10, 20, 30]
+    if N_test is None:
+        N_test = [50, 75]
+
+    print(f"\nCross-Validation Test")
+    print("=" * 30)
+    print(f"Training on N ∈ {N_train}")
+    print(f"Testing on N ∈ {N_test}")
+
+    train_result = test_effective_dof_scaling(N_train, trials)
+
+    if not np.isfinite(train_result['measured_exponent']):
+        return {'generalization': 'FAILED', 'reason': 'Training failed'}
+
+    exponent = train_result['measured_exponent']
+    amplitude = train_result['amplitude']
+
+    predicted = amplitude * np.array(N_test)**exponent
+
+    base_K_c = 0.0250
+    K_ratio = 1.2
+
+    actual = []
+    for N in N_test:
+        K_c_N = base_K_c * (10.0 / N)
+        K = K_ratio * K_c_N
+        n_eff = measure_effective_degrees_of_freedom(N, K, trials)
+        actual.append(n_eff)
+        print(f"  N={N}: Predicted {predicted[len(actual)-1]:.2f}, "
+              f"Actual {n_eff:.2f} (K={K:.4f})")
+
+    if len(predicted) > 1 and len(actual) > 1:
+        r_squared = np.corrcoef(predicted, actual)[0, 1]**2
+        mse = np.mean((np.array(predicted) - np.array(actual))**2)
+    else:
+        r_squared = 0.0
+        mse = float('inf')
+
+    generalization = 'EXCELLENT' if r_squared > 0.9 else 'GOOD' if r_squared > 0.7 else 'MODERATE' if r_squared > 0.5 else 'POOR'
+
+    print(f"  Generalization: {generalization} (R² = {r_squared:.3f})")
+
+    return {
+        'train_N': N_train,
+        'test_N': N_test,
+        'predicted': predicted.tolist(),
+        'actual': actual,
+        'r_squared': r_squared,
+        'mse': mse,
+        'generalization': generalization
+    }
+
+
+def run_complete_hypothesis_test(N_values: List[int] = None, trials_per_N: int = 100) -> Dict[str, Any]:
+    """Run the complete effective DOF hypothesis test suite."""
+    if N_values is None:
+        N_values = [10, 20, 30, 50, 75]
+
+    print("COMPLETE EFFECTIVE DEGREES OF FREEDOM HYPOTHESIS TEST")
+    print("=" * 70)
+    print("Testing: N_eff ~ √N explains basin volume scaling")
+    print(f"N values: {N_values}")
+    print(f"Trials per N: {trials_per_N}")
+    print()
+
+    primary_result = test_effective_dof_scaling(N_values, trials_per_N)
+    consistency_results = test_consistency_predictions(N_values, trials_per_N)
+
+    if len(N_values) > 3:
+        N_train = N_values[:len(N_values)//2]
+        N_test = N_values[len(N_values)//2:]
+        cv_result = cross_validate_hypothesis(N_train, N_test, trials_per_N)
+    else:
+        cv_result = {'generalization': 'SKIPPED', 'reason': 'Insufficient data'}
+
+    primary_supported = primary_result['verdict'] == 'SUPPORTED'
+    consistency_score = sum(1 for r in consistency_results.values() if r['consistent'])
+    consistency_supported = consistency_score >= 2
+
+    if primary_supported and consistency_supported:
+        overall_verdict = "HYPOTHESIS SUPPORTED"
+        confidence = min(primary_result['confidence'], 0.8)
+    elif primary_supported:
+        overall_verdict = "PARTIALLY SUPPORTED"
+        confidence = primary_result['confidence'] * 0.7
+    else:
+        overall_verdict = "HYPOTHESIS FALSIFIED"
+        confidence = 0.1
+
+    print(f"\n" + "=" * 70)
+    print("FINAL RESULTS SUMMARY")
+    print("=" * 70)
+    print(f"Overall Verdict: {overall_verdict}")
+    print(f"Confidence: {confidence:.1%}")
+    print()
+    print("Primary Test (N_eff ~ √N):")
+    print(f"  Verdict: {primary_result['verdict']}")
+    print(f"  Exponent: {primary_result['measured_exponent']:.3f} ± {primary_result['measured_error']:.3f}")
+    print(f"  R²: {primary_result['r_squared']:.3f}")
+    print()
+    print("Consistency Check:")
+    print(f"  {consistency_score}/3 predictions consistent")
+    print()
+    print("Cross-Validation:")
+    if cv_result['generalization'] != 'SKIPPED':
+        print(f"  Generalization: {cv_result['generalization']} (R² = {cv_result['r_squared']:.3f})")
+    else:
+        print(f"  {cv_result['reason']}")
+
+    if overall_verdict == "HYPOTHESIS SUPPORTED":
+        print("\n🎉 SUCCESS: Effective DOF hypothesis explains √N scaling!")
+    elif overall_verdict == "PARTIALLY SUPPORTED":
+        print("\n⚠️ PARTIAL: Primary scaling supported but consistency issues.")
+    else:
+        print("\n❌ FALSIFIED: N_eff does not scale as √N.")
+
+    return {
+        'overall_verdict': overall_verdict,
+        'confidence': confidence,
+        'primary_test': primary_result,
+        'consistency': consistency_results,
+        'cross_validation': cv_result
+    }
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Test effective degrees of freedom hypothesis")
+    parser.add_argument('--full', action='store_true', help='Run full validation (more N values)')
+    parser.add_argument('--trials', type=int, default=100, help='Trials per N value')
+    parser.add_argument('--quick', action='store_true', help='Quick test with minimal trials')
+    parser.add_argument('--primary-only', action='store_true', help='Run only primary N_eff test')
+    parser.add_argument('--consistency', action='store_true', help='Run only consistency tests')
+    parser.add_argument('--cross-validate', action='store_true', help='Run cross-validation test')
+    parser.add_argument('--alternatives', action='store_true', help='Run alternative hypotheses test suite')
+    parser.add_argument('--complexity-barrier', action='store_true', help='Run Complexity Barrier Hypothesis test suite')
+    parser.add_argument('--update1', action='store_true', help='Run Update 1: Energy Barrier Scaling')
+    parser.add_argument('--update2', action='store_true', help='Run Update 2: Stochastic Dynamics & MDP')
+    parser.add_argument('--update3', action='store_true', help='Run Update 3: Fractal Dimension Analysis')
+    parser.add_argument('--curvature', action='store_true', help='Run curvature test only')
+
+    args = parser.parse_args()
+
+    if args.quick:
+        N_values = [10, 20, 30]
+        trials = 50
+    elif args.full:
+        N_values = [10, 20, 30, 50, 75, 100]
+        trials = 200
+    else:
+        N_values = [10, 20, 30, 50]
+        trials = args.trials
+
+    if args.primary_only:
+        result = test_effective_dof_scaling(N_values, trials)
+    elif args.consistency:
+        result = test_consistency_predictions(N_values, trials)
+    elif args.cross_validate:
+        N_train = N_values[:len(N_values)//2]
+        N_test = N_values[len(N_values)//2:]
+        result = cross_validate_hypothesis(N_train, N_test, trials)
+    elif args.alternatives:
+        result = run_alternative_hypotheses_test(N_values, trials)
+    elif args.complexity_barrier:
+        result = run_complexity_barrier_test_suite(N_values, trials)
+    elif args.update1:
+        result = test_energy_barrier_scaling_hypothesis(N_values, trials)
+    elif args.update2:
+        result = test_stochastic_dynamics_hypothesis(N_values, trials*2)
+    elif args.update3:
+        result = test_fractal_dimension_hypothesis(N_values, trials//5)
+    elif args.curvature:
+        result = test_phase_space_curvature_hypothesis_FIXED(N_values, trials)
+    else:
+        result = run_complete_hypothesis_test(N_values, trials)
+
+    print(f"\n{'='*70}")
+    print("ANALYSIS COMPLETE")
+    print(f"{'='*70}")
+    print(f"Used multiprocessing with {min(mp.cpu_count(), 8)} CPU cores")
