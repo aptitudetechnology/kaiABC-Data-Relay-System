@@ -10,8 +10,10 @@ roots = [
   "ScalingLaws.lean",
   "EffectiveDOF.lean",
   "Examples.lean",
-  "PhaseSpaceCurvature.lean"
+  "PhaseSpaceCurvature.lean",
+  "Kuramoto3.lean"
 ]
 
 [scripts]
 run_examples = "lean --run Examples.lean"
+run_kuramoto3 = "lean --run Kuramoto3.lean"
