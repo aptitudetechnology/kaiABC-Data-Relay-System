@@ -2629,7 +2629,7 @@ def test_information_bottleneck_hypothesis(N_values: List[int] = None, trials_pe
             # Find boundary point
             boundary_theta = None
             for _ in range(100):
-                theta = runge_kutta_step(theta, omega, K_test, 0.01)
+                theta = runge_kutta_step(theta, omega, K, 0.01)
                 r = np.abs(np.mean(np.exp(1j * theta)))
                 if 0.4 < r < 0.6:
                     boundary_theta = theta.copy()
