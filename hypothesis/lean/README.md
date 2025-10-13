@@ -45,13 +45,26 @@ The empirical analysis shows that **phase space curvature** provides the stronge
 ## Building
 
 ```bash
-leanpkg build
+lake build
+```
+
+Or if Lake is not available:
+
+```bash
+lean --make .
 ```
 
 ## Running Examples
 
 ```bash
 lean Examples.lean
+```
+
+Or interactively:
+
+```bash
+lean
+import Examples
 ```
 
 ## Future Directions

@@ -1,0 +1,14 @@
+name = "kuramoto-basin-scaling"
+version = "0.1.0"
+
+[[lean_lib]]
+name = "KuramotoBasinScaling"
+srcDir = "."
+roots = [
+  "Kuramoto.lean",
+  "BasinVolume.lean",
+  "ScalingLaws.lean",
+  "EffectiveDOF.lean",
+  "Examples.lean",
+  "PhaseSpaceCurvature.lean"
+]
