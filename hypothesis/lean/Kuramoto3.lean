@@ -23,31 +23,22 @@ structure CouplingParams where
 
 -- System dynamics for three oscillators with isosceles triangle topology
 def kuramoto3Dynamics (state : Kuramoto3State) (params : CouplingParams) : Kuramoto3State :=
-  let θ1 := state.θ1
-  let θ2 := state.θ2
-  let θ3 := state.θ3
-  let K1 := params.K1
-  let K2 := params.K2
-
-  -- Equations from the paper (system 1):
-  -- θ̇₁ = K₁ sin(θ₂ - θ₁) + K₁ sin(θ₃ - θ₁)
-  -- θ̇₂ = K₁ sin(θ₁ - θ₂) + K₂ sin(θ₃ - θ₂)
-  -- θ̇₃ = K₁ sin(θ₁ - θ₃) + K₂ sin(θ₂ - θ₃)
-  { θ1 := K1 * Float.sin(θ2 - θ1) + K1 * Float.sin(θ3 - θ1),
-    θ2 := K1 * Float.sin(θ1 - θ2) + K2 * Float.sin(θ3 - θ2),
-    θ3 := K1 * Float.sin(θ1 - θ3) + K2 * Float.sin(θ2 - θ3) }
+  let θ1_dot := params.K1 * Float.sin(state.θ2 - state.θ1) + params.K1 * Float.sin(state.θ3 - state.θ1);
+  let θ2_dot := params.K1 * Float.sin(state.θ1 - state.θ2) + params.K2 * Float.sin(state.θ3 - state.θ2);
+  let θ3_dot := params.K1 * Float.sin(state.θ1 - state.θ3) + params.K2 * Float.sin(state.θ2 - state.θ3);
+  { θ1 := θ1_dot, θ2 := θ2_dot, θ3 := θ3_dot }
 
 -- Order parameter for synchronization
 def orderParameter3 (state : Kuramoto3State) : Float :=
-  let r1 := Float.cos(state.θ1) + Float.cos(state.θ2) + Float.cos(state.θ3)
-  let r2 := Float.sin(state.θ1) + Float.sin(state.θ2) + Float.sin(state.θ3)
+  let r1 := Float.cos(state.θ1) + Float.cos(state.θ2) + Float.cos(state.θ3);
+  let r2 := Float.sin(state.θ1) + Float.sin(state.θ2) + Float.sin(state.θ3);
   Float.sqrt(r1*r1 + r2*r2) / 3.0
 
 -- Phase diameter function from the paper: 𝒟(Θ̃) = max(θᵢ) - min(θⱼ)
 def phaseDiameter (state : Kuramoto3State) : Float :=
-  let θs := [state.θ1, state.θ2, state.θ3]
-  let maxθ := θs.foldl (fun acc x => if x > acc then x else acc) 0.0
-  let minθ := θs.foldl (fun acc x => if x < acc then x else acc) pi
+  let θs := [state.θ1, state.θ2, state.θ3];
+  let maxθ := θs.foldl (fun acc x => if x > acc then x else acc) 0.0;
+  let minθ := θs.foldl (fun acc x => if x < acc then x else acc) pi;
   maxθ - minθ
 
 -- Critical points from Lemma 1
@@ -71,32 +62,32 @@ def criticalPoint6 (params : CouplingParams) : Option Kuramoto3State :=
 -- Jacobian matrix for stability analysis
 def jacobian3 (state : Kuramoto3State) (params : CouplingParams) :
     (Float × Float × Float × Float × Float × Float × Float × Float × Float) :=
-  let θ1 := state.θ1
-  let θ2 := state.θ2
-  let θ3 := state.θ3
-  let K1 := params.K1
-  let K2 := params.K2
+  let θ1 := state.θ1;
+  let θ2 := state.θ2;
+  let θ3 := state.θ3;
+  let K1 := params.K1;
+  let K2 := params.K2;
 
   -- Partial derivatives for Jacobian matrix
-  let J11 := -K1 * Float.cos(θ2 - θ1) - K1 * Float.cos(θ3 - θ1)
-  let J12 := K1 * Float.cos(θ2 - θ1)
-  let J13 := K1 * Float.cos(θ3 - θ1)
+  let J11 := -K1 * Float.cos(θ2 - θ1) - K1 * Float.cos(θ3 - θ1);
+  let J12 := K1 * Float.cos(θ2 - θ1);
+  let J13 := K1 * Float.cos(θ3 - θ1);
 
-  let J21 := K1 * Float.cos(θ1 - θ2)
-  let J22 := -K1 * Float.cos(θ1 - θ2) - K2 * Float.cos(θ3 - θ2)
-  let J23 := K2 * Float.cos(θ3 - θ2)
+  let J21 := K1 * Float.cos(θ1 - θ2);
+  let J22 := -K1 * Float.cos(θ1 - θ2) - K2 * Float.cos(θ3 - θ2);
+  let J23 := K2 * Float.cos(θ3 - θ2);
 
-  let J31 := K1 * Float.cos(θ1 - θ3)
-  let J32 := K2 * Float.cos(θ2 - θ3)
-  let J33 := -K1 * Float.cos(θ1 - θ3) - K2 * Float.cos(θ2 - θ3)
+  let J31 := K1 * Float.cos(θ1 - θ3);
+  let J32 := K2 * Float.cos(θ2 - θ3);
+  let J33 := -K1 * Float.cos(θ1 - θ3) - K2 * Float.cos(θ2 - θ3);
 
   (J11, J12, J13, J21, J22, J23, J31, J32, J33)
 
 -- Basin of attraction regions from Theorem 1
 def basinRegion5 (state : Kuramoto3State) : Bool :=
-  let θ1_θ3 := state.θ1 - state.θ3
-  let θ2_θ3 := state.θ2 - state.θ3
-  let θ1_θ2 := state.θ1 - state.θ2
+  let θ1_θ3 := state.θ1 - state.θ3;
+  let θ2_θ3 := state.θ2 - state.θ3;
+  let θ1_θ2 := state.θ1 - state.θ2;
 
   -- Conditions: -π < θ₁(0) - θ₃(0) < π/3, -π/3 < θ₂(0) - θ₃(0) < π, -4π/3 < θ₁(0) - θ₂(0) < 0
   (-pi < θ1_θ3 ∧ θ1_θ3 < pi/3.0) ∧
@@ -104,9 +95,9 @@ def basinRegion5 (state : Kuramoto3State) : Bool :=
   (-4.0*pi/3.0 < θ1_θ2 ∧ θ1_θ2 < 0.0)
 
 def basinRegion6 (state : Kuramoto3State) : Bool :=
-  let θ1_θ3 := state.θ1 - state.θ3
-  let θ2_θ3 := state.θ2 - state.θ3
-  let θ1_θ2 := state.θ1 - state.θ2
+  let θ1_θ3 := state.θ1 - state.θ3;
+  let θ2_θ3 := state.θ2 - state.θ3;
+  let θ1_θ2 := state.θ1 - state.θ2;
 
   -- Conditions: -7π/3 < θ₁(0) - θ₃(0) < -π, -π < θ₂(0) - θ₃(0) < π/3, -2π < θ₁(0) - θ₂(0) < -2π/3
   (-7.0*pi/3.0 < θ1_θ3 ∧ θ1_θ3 < -pi) ∧
