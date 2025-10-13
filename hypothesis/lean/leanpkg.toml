@@ -9,4 +9,4 @@ mathlib = { git = "https://github.com/leanprover-community/mathlib4", rev = "mas
 
 [[lean_lib]]
 name = "KuramotoBasinScaling"
-roots = ["Kuramoto.lean", "BasinVolume.lean", "ScalingLaws.lean", "EffectiveDOF.lean", "Examples.lean"]
+roots = ["Kuramoto.lean", "BasinVolume.lean", "ScalingLaws.lean", "EffectiveDOF.lean", "Examples.lean", "PhaseSpaceCurvature.lean"]
