@@ -12,3 +12,6 @@ roots = [
   "Examples.lean",
   "PhaseSpaceCurvature.lean"
 ]
+
+[scripts]
+run_examples = "lean --run Examples.lean"
