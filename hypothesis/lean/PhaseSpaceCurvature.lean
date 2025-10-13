@@ -155,28 +155,28 @@ def researchDirections : List Prop :=
 Phase space curvature scaling hypothesis.
 Empirical finding: κ(N) ~ N^(-0.477) with R² = 0.983
 -/
-def curvatureScaling (N : ℝ) : ℝ :=
-  N^(-0.477)  -- Would need proper real power implementation
+def curvatureScaling (N : Float) : Float :=
+  1.0 / (N ^ 0.477)  -- Simplified power law approximation
 
 /--
 Theoretical curvature scaling prediction.
 κ ~ N^(-1/2) from geometric considerations.
 -/
-def theoreticalCurvatureScaling (N : ℝ) : ℝ :=
-  N^(-0.5)  -- Would need proper real power implementation
+def theoreticalCurvatureScaling (N : Float) : Float :=
+  1.0 / Float.sqrt N  -- κ ~ N^(-0.5)
 
 /--
 Basin volume from curvature barriers.
 V ~ exp(-1/κ) where κ is the curvature scale.
 -/
-def basinVolumeFromCurvature (κ : ℝ) : ℝ :=
-  sorry  -- Would need exp function: exp(-1/κ)
+def basinVolumeFromCurvature (κ : Float) : Float :=
+  Float.exp (-1.0 / κ)  -- exp(-1/κ)
 
 /--
 Statistical validation constants from empirical results.
 -/
-def empiricalRSquared : ℝ := sorry  -- 0.983
-def statisticalSignificance : ℝ := sorry  -- 0.7
+def empiricalRSquared : Float := 0.983
+def statisticalSignificance : Float := 0.7
 
 /--
 The curvature hypothesis is supported by empirical evidence.
@@ -199,7 +199,7 @@ Critical slowing down: no N-dependence in relaxation times.
 All trials hit maximum time limit of 100 units.
 -/
 def criticalSlowingFailed : Prop :=
-  ∀ N : ℕ, N ∈ [10, 20, 30, 50, 75, 100] →
+  ∀ N : Nat, N ∈ [10, 20, 30, 50, 75, 100] →
   -- Relaxation time τ ≈ 100 (max time) for all N
   True
 
@@ -208,7 +208,7 @@ Collective modes: only 1 dominant mode regardless of N.
 Mean-field dominance prevents multi-mode behavior.
 -/
 def collectiveModesFailed : Prop :=
-  ∀ N : ℕ, N ∈ [10, 20, 30, 50, 75, 100] →
+  ∀ N : Nat, N ∈ [10, 20, 30, 50, 75, 100] →
   -- Number of significant modes = 1 for all N
   True
 
@@ -217,7 +217,7 @@ Finite size effects: all systems failed to synchronize.
 Coupling strength K was too low for the given frequency dispersion.
 -/
 def finiteSizeFailed : Prop :=
-  ∀ N : ℕ, N ∈ [10, 20, 30, 50, 75, 100] →
+  ∀ N : Nat, N ∈ [10, 20, 30, 50, 75, 100] →
   -- Final order parameter r_final < 0.5 for all trials
   True
 
@@ -225,7 +225,7 @@ def finiteSizeFailed : Prop :=
 Information bottleneck: weak scaling (σ = 2.2).
 Shows some promise but not as strong as curvature.
 -/
-def informationBottleneckWeak : ℝ := sorry  -- 2.2
+def informationBottleneckWeak : Float := 2.2
 
 /--
 Physical interpretation: geometric barriers vs energetic barriers.
