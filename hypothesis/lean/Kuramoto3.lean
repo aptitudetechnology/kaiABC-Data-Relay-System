@@ -23,14 +23,14 @@ structure CouplingParams where
 
 -- System dynamics for three oscillators with isosceles triangle topology
 def kuramoto3Dynamics (state : Kuramoto3State) (params : CouplingParams) : Kuramoto3State :=
-  let θ1 := state.θ1
-  let θ2 := state.θ2
-  let θ3 := state.θ3
-  let K1 := params.K1
-  let K2 := params.K2
-  let θ1_dot := K1 * Float.sin(θ2 - θ1) + K1 * Float.sin(θ3 - θ1)
-  let θ2_dot := K1 * Float.sin(θ1 - θ2) + K2 * Float.sin(θ3 - θ2)
-  let θ3_dot := K1 * Float.sin(θ1 - θ3) + K2 * Float.sin(θ2 - θ3)
+  let θ1 := state.θ1;
+  let θ2 := state.θ2;
+  let θ3 := state.θ3;
+  let K1 := params.K1;
+  let K2 := params.K2;
+  let θ1_dot := K1 * Float.sin(θ2 - θ1) + K1 * Float.sin(θ3 - θ1);
+  let θ2_dot := K1 * Float.sin(θ1 - θ2) + K2 * Float.sin(θ3 - θ2);
+  let θ3_dot := K1 * Float.sin(θ1 - θ3) + K2 * Float.sin(θ2 - θ3);
   { θ1 := θ1_dot, θ2 := θ2_dot, θ3 := θ3_dot }
 
 -- Order parameter for synchronization
