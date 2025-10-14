@@ -17,14 +17,7 @@ This repository now includes a **prototype theoretical (not currently tested) im
 - Remarkably stable 24h period across temperature variation
 - Q10 ≈ 1.1 (near-perfect temperature compensation)
 
-**2. Geometry:** ### 🧬 **Triple Connection Framework: Biology → Dynamics → Formal Verification**
-
-**1. Biology:** KaiABC circadian proteins (temperature-compensated oscillators)
-- Cyanobacterial biological clock (KaiA, KaiB, KaiC proteins)
-- Remarkably stable 24h period across temperature variation
-- Q10 ≈ 1.1 (near-perfect temperature compensation)
-
-**2. Dynamics:** Kuramoto synchronization and basin geometry
+**2. Dynamics (Geometry):** Kuramoto synchronization and basin geometry
 - N coupled phase oscillators on circle
 - Basin of attraction: Region of phase space leading to synchronization
 - Critical coupling K_c separates ordered/disordered phases
