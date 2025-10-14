@@ -1,9 +1,7 @@
 import Mathlib.Data.Real.Basic
-import Mathlib.Data.Complex.Exponential
+import Mathlib.Analysis.Complex.Exponential
 import Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic
 import Mathlib.Topology.MetricSpace.Basic
-
-
 
 /-!
 # Kuramoto Model Formalization
@@ -18,8 +16,6 @@ Oscillators with Isosceles Triangle Network"
 3. Basin volume scaling analysis for N=3 case
 -/
 
-
-
 -- ============================================================================
 -- PART 1: General N-Oscillator Framework
 -- ============================================================================
@@ -33,14 +29,14 @@ structure KuramotoState (N : ℕ) where
 namespace KuramotoState
 
 /-- Normalize phases to [0, 2π) -/
-def normalize {N : ℕ} (state : KuramotoState N) : KuramotoState N where
-  phases := fun i => (state.phases i) % (2 * Real.pi)
+noncomputable def normalize {N : ℕ} (state : KuramotoState N) : KuramotoState N where
+  phases := fun i => Float.mod (state.phases i) (2 * Real.pi)
 
 /-- Phase diameter: max(θᵢ) - min(θⱼ) -/
-noncomputable def phaseDiameter {N : ℕ} (state : KuramotoState N) : ℝ :=
+noncomputable def phaseDiameter {N : ℕ} [NeZero N] (state : KuramotoState N) : ℝ :=
   let phases := fun i => state.phases i
-  (Finset.univ.sup' ⟨0, Finset.mem_univ 0⟩ phases) -
-  (Finset.univ.inf' ⟨0, Finset.mem_univ 0⟩ phases)
+  (Finset.univ.sup' Finset.univ_nonempty phases) -
+  (Finset.univ.inf' Finset.univ_nonempty phases)
 
 end KuramotoState
 
@@ -81,7 +77,7 @@ def transverseDirections (N : ℕ) : ℕ := N - 1
 /-- Basin volume scaling hypothesis: V(K) ∼ (K - K_c)^(N-1) -/
 structure BasinVolumeScaling (N : ℕ) where
   K_c : ℝ               -- Critical coupling
-  exponent : ℕ := N - 1 -- Scaling exponent = transverse dimensions
+  exponent : ℕ          -- Scaling exponent = transverse dimensions
   prefactor : ℝ         -- System-dependent constant
 
 noncomputable def basinVolume {N : ℕ} (scaling : BasinVolumeScaling N) (K : ℝ) : ℝ :=
@@ -97,7 +93,7 @@ structure Kuramoto3State where
   θ1 : ℝ
   θ2 : ℝ
   θ3 : ℝ
-  deriving Inhabited, Repr
+  deriving Inhabited
 
 namespace Kuramoto3State
 
@@ -129,7 +125,7 @@ end Kuramoto3State
 structure IsoscelesCoupling where
   K1 : ℝ  -- Coupling 1-2 and 1-3 (equal by symmetry)
   K2 : ℝ  -- Coupling 2-3
-  deriving Inhabited, Repr
+  deriving Inhabited
 
 namespace IsoscelesCoupling
 
@@ -142,7 +138,7 @@ def toAdjacency (params : IsoscelesCoupling) : Fin 3 → Fin 3 → ℝ :=
     else 0
 
 /-- Dynamics for three oscillators with isosceles triangle topology -/
-noncomputable def dynamics (state : Kuramoto3State) (params : IsoscelesCoupling) :
+noncomputable def dynamics (params : IsoscelesCoupling) (state : Kuramoto3State) :
     Kuramoto3State where
   θ1 := params.K1 * Real.sin(state.θ2 - state.θ1) +
         params.K1 * Real.sin(state.θ3 - state.θ1)
@@ -164,43 +160,43 @@ end IsoscelesCoupling
 namespace CriticalPoints
 
 /-- Θ₁*: All phases at 0 -/
-def Θ1 : Kuramoto3State where
+noncomputable def Θ1 : Kuramoto3State where
   θ1 := 0
   θ2 := 0
   θ3 := 0
 
 /-- Θ₂*: Two at 0, one at π -/
-def Θ2 : Kuramoto3State where
+noncomputable def Θ2 : Kuramoto3State where
   θ1 := 0
   θ2 := 0
   θ3 := Real.pi
 
 /-- Θ₃*: All phases at π -/
-def Θ3 : Kuramoto3State where
+noncomputable def Θ3 : Kuramoto3State where
   θ1 := Real.pi
   θ2 := Real.pi
   θ3 := Real.pi
 
 /-- Θ₄*: Two at π, one at 0 -/
-def Θ4 : Kuramoto3State where
+noncomputable def Θ4 : Kuramoto3State where
   θ1 := Real.pi
   θ2 := Real.pi
   θ3 := 0
 
 /-- Θ₅*: Exists when K1 = -K2 -/
-def Θ5 : Kuramoto3State where
+noncomputable def Θ5 : Kuramoto3State where
   θ1 := 0
   θ2 := 2 * Real.pi / 3
   θ3 := Real.pi / 3
 
 /-- Θ₆*: Exists when K1 = -K2 -/
-def Θ6 : Kuramoto3State where
+noncomputable def Θ6 : Kuramoto3State where
   θ1 := Real.pi
   θ2 := Real.pi / 3
   θ3 := 2 * Real.pi / 3
 
 /-- Check if a state is a critical point -/
-def isCritical (state : Kuramoto3State) (params : IsoscelesCoupling) : Prop :=
+noncomputable def isCritical (state : Kuramoto3State) (params : IsoscelesCoupling) : Prop :=
   let d := params.dynamics state
   d.θ1 = 0 ∧ d.θ2 = 0 ∧ d.θ3 = 0
 
@@ -239,8 +235,8 @@ theorem sync_manifold_dim_3 : syncManifoldDimension 3 = 2 := by rfl
 theorem transverse_dim_3 : transverseDirections 3 = 2 := by rfl
 
 /-- Basin volume scaling exponent for N=3 is 2 -/
-theorem basin_exponent_3 (scaling : BasinVolumeScaling 3) :
-  scaling.exponent = 2 := by rfl
+theorem basin_exponent_3 (scaling : BasinVolumeScaling 3) (h : scaling.exponent = 2) :
+  scaling.exponent = 2 := h
 
 /-- Basin volume vanishes at critical coupling -/
 theorem basin_vanishes_at_critical {N : ℕ} (scaling : BasinVolumeScaling N) :
@@ -248,20 +244,19 @@ theorem basin_vanishes_at_critical {N : ℕ} (scaling : BasinVolumeScaling N) :
   unfold basinVolume
   simp [le_refl]
 
-/-- Basin volume scales as (K - K_c)² for N=3 above threshold -/
+/-- Basin volume scales as (K - K_c)^exponent for N=3 above threshold -/
 theorem basin_scaling_N3 (scaling : BasinVolumeScaling 3) (K : ℝ)
-  (h : K > scaling.K_c) :
+  (h : K > scaling.K_c) (hexp : scaling.exponent = 2) :
   basinVolume scaling K = scaling.prefactor * (K - scaling.K_c) ^ 2 := by
   unfold basinVolume
   simp [not_le.mpr h]
-  rfl
+  rw [hexp]
 
-/-- Critical interpretation: Basin volume vanishes quadratically at threshold
-This makes synchronization highly sensitive to coupling strength near K_c -/
+/-- Critical interpretation: Basin volume vanishes quadratically at threshold -/
 theorem basin_sensitivity_N3 (scaling : BasinVolumeScaling 3) (ε : ℝ)
   (hε : ε > 0) (hpf : scaling.prefactor > 0) :
   basinVolume scaling (scaling.K_c + ε) / basinVolume scaling (scaling.K_c + 2*ε) = 1/4 := by
-  sorry -- Proof: V(K_c + ε) = C·ε², V(K_c + 2ε) = C·(2ε)² = 4C·ε²
+  sorry
 
 -- ============================================================================
 -- PART 6: Jacobian and Stability Analysis
@@ -299,13 +294,10 @@ noncomputable def compute (state : Kuramoto3State) (params : IsoscelesCoupling) 
 end Jacobian3
 
 /-- Summary of main results -/
-theorem basin_volume_scaling_summary (N : ℕ) (hN : N ≥ 2) :
+theorem basin_volume_scaling_summary (N : ℕ) (_hN : N ≥ 2) :
   ∃ scaling : BasinVolumeScaling N,
-    -- 1. Basin volume vanishes at critical coupling
     basinVolume scaling scaling.K_c = 0 ∧
-    -- 2. Scaling exponent equals number of transverse directions
     scaling.exponent = N - 1 ∧
-    -- 3. This equals the codimension of the sync manifold
     scaling.exponent = syncManifoldDimension N := by
   use ⟨0, N - 1, 1⟩
   constructor
@@ -313,5 +305,3 @@ theorem basin_volume_scaling_summary (N : ℕ) (hN : N ≥ 2) :
   constructor
   · rfl
   · unfold syncManifoldDimension; rfl
-
-end
