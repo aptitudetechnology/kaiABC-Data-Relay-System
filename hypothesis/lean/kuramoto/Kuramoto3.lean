@@ -30,7 +30,7 @@ namespace KuramotoState
 
 /-- Normalize phases to [0, 2π) -/
 noncomputable def normalize {N : ℕ} (state : KuramotoState N) : KuramotoState N where
-  phases := fun i => Float.mod (state.phases i) (2 * Real.pi)
+  phases := fun i => (state.phases i) - 2 * Real.pi * ⌊(state.phases i) / (2 * Real.pi)⌋
 
 /-- Phase diameter: max(θᵢ) - min(θⱼ) -/
 noncomputable def phaseDiameter {N : ℕ} [NeZero N] (state : KuramotoState N) : ℝ :=
@@ -139,24 +139,19 @@ def toAdjacency (params : IsoscelesCoupling) : Fin 3 → Fin 3 → ℝ :=
 
 /-- Dynamics for three oscillators with isosceles triangle topology -/
 noncomputable def dynamics (params : IsoscelesCoupling) (state : Kuramoto3State) :
-    Kuramoto3State where
-  θ1 := params.K1 * Real.sin(state.θ2 - state.θ1) +
-        params.K1 * Real.sin(state.θ3 - state.θ1)
-  θ2 := params.K1 * Real.sin(state.θ1 - state.θ2) +
-        params.K2 * Real.sin(state.θ3 - state.θ2)
-  θ3 := params.K1 * Real.sin(state.θ1 - state.θ3) +
-        params.K2 * Real.sin(state.θ2 - state.θ3)
+    Kuramoto3State :=
+  { θ1 := params.K1 * Real.sin(state.θ2 - state.θ1) +
+          params.K1 * Real.sin(state.θ3 - state.θ1),
+    θ2 := params.K1 * Real.sin(state.θ1 - state.θ2) +
+          params.K2 * Real.sin(state.θ3 - state.θ2),
+    θ3 := params.K1 * Real.sin(state.θ1 - state.θ3) +
+          params.K2 * Real.sin(state.θ2 - state.θ3) }
 
 /-- Check if params satisfy K1 = -K2 (special case) -/
 def isSpecialCase (params : IsoscelesCoupling) : Prop := params.K1 = -params.K2
 
 end IsoscelesCoupling
 
--- ============================================================================
--- PART 3: Critical Points (Lemma 1 from paper)
--- ============================================================================
-
-/-- Basic critical points (always exist) -/
 namespace CriticalPoints
 
 /-- Θ₁*: All phases at 0 -/
@@ -202,9 +197,7 @@ noncomputable def isCritical (state : Kuramoto3State) (params : IsoscelesCouplin
 
 end CriticalPoints
 
--- ============================================================================
--- PART 4: Basin of Attraction Analysis (Theorem 1 from paper)
--- ============================================================================
+-- Basin of Attraction Analysis
 
 /-- Basin region for Θ₅* (when K1 = -K2) -/
 def basinRegion5 (state : Kuramoto3State) : Prop :=
@@ -249,8 +242,7 @@ theorem basin_scaling_N3 (scaling : BasinVolumeScaling 3) (K : ℝ)
   (h : K > scaling.K_c) (hexp : scaling.exponent = 2) :
   basinVolume scaling K = scaling.prefactor * (K - scaling.K_c) ^ 2 := by
   unfold basinVolume
-  simp [not_le.mpr h]
-  rw [hexp]
+  simp [not_le.mpr h, hexp]
 
 /-- Critical interpretation: Basin volume vanishes quadratically at threshold -/
 theorem basin_sensitivity_N3 (scaling : BasinVolumeScaling 3) (ε : ℝ)
@@ -277,19 +269,19 @@ structure Jacobian3 where
 namespace Jacobian3
 
 /-- Compute Jacobian for isosceles triangle network -/
-noncomputable def compute (state : Kuramoto3State) (params : IsoscelesCoupling) : Jacobian3 where
-  J11 := -params.K1 * Real.cos(state.θ2 - state.θ1) -
-          params.K1 * Real.cos(state.θ3 - state.θ1)
-  J12 := params.K1 * Real.cos(state.θ2 - state.θ1)
-  J13 := params.K1 * Real.cos(state.θ3 - state.θ1)
-  J21 := params.K1 * Real.cos(state.θ1 - state.θ2)
-  J22 := -params.K1 * Real.cos(state.θ1 - state.θ2) -
-          params.K2 * Real.cos(state.θ3 - state.θ2)
-  J23 := params.K2 * Real.cos(state.θ3 - state.θ2)
-  J31 := params.K1 * Real.cos(state.θ1 - state.θ3)
-  J32 := params.K2 * Real.cos(state.θ2 - state.θ3)
-  J33 := -params.K1 * Real.cos(state.θ1 - state.θ3) -
-          params.K2 * Real.cos(state.θ2 - state.θ3)
+noncomputable def compute (state : Kuramoto3State) (params : IsoscelesCoupling) : Jacobian3 :=
+  { J11 := -params.K1 * Real.cos(state.θ2 - state.θ1) -
+            params.K1 * Real.cos(state.θ3 - state.θ1),
+    J12 := params.K1 * Real.cos(state.θ2 - state.θ1),
+    J13 := params.K1 * Real.cos(state.θ3 - state.θ1),
+    J21 := params.K1 * Real.cos(state.θ1 - state.θ2),
+    J22 := -params.K1 * Real.cos(state.θ1 - state.θ2) -
+            params.K2 * Real.cos(state.θ3 - state.θ2),
+    J23 := params.K2 * Real.cos(state.θ3 - state.θ2),
+    J31 := params.K1 * Real.cos(state.θ1 - state.θ3),
+    J32 := params.K2 * Real.cos(state.θ2 - state.θ3),
+    J33 := -params.K1 * Real.cos(state.θ1 - state.θ3) -
+            params.K2 * Real.cos(state.θ2 - state.θ3) }
 
 end Jacobian3
 
