@@ -62,7 +62,7 @@ noncomputable def phaseToComplex (θ : ℝ) : ℂ :=
 /-- The order parameter r e^(iψ) = (1/N) Σ_j exp(iθ_j) -/
 noncomputable def orderParameter {N : ℕ} (state : KuramotoState N) : ℝ :=
   let z := (Finset.univ.sum fun j => phaseToComplex (state.phases j)) / N
-  Complex.abs z
+  z.abs
 
 /-- Complete synchronization: all phases equal (modulo 2π) -/
 def isFullySynchronized {N : ℕ} (state : KuramotoState N) : Prop :=
@@ -154,43 +154,43 @@ end IsoscelesCoupling
 
 namespace CriticalPoints
 
-/-- Θ₁*: All phases at 0 -/
+-- Θ₁*: All phases at 0
 noncomputable def Θ1 : Kuramoto3State where
   θ1 := 0
   θ2 := 0
   θ3 := 0
 
-/-- Θ₂*: Two at 0, one at π -/
+-- Θ₂*: Two at 0, one at π
 noncomputable def Θ2 : Kuramoto3State where
   θ1 := 0
   θ2 := 0
   θ3 := Real.pi
 
-/-- Θ₃*: All phases at π -/
+-- Θ₃*: All phases at π
 noncomputable def Θ3 : Kuramoto3State where
   θ1 := Real.pi
   θ2 := Real.pi
   θ3 := Real.pi
 
-/-- Θ₄*: Two at π, one at 0 -/
+-- Θ₄*: Two at π, one at 0
 noncomputable def Θ4 : Kuramoto3State where
   θ1 := Real.pi
   θ2 := Real.pi
   θ3 := 0
 
-/-- Θ₅*: Exists when K1 = -K2 -/
+-- Θ₅*: Exists when K1 = -K2
 noncomputable def Θ5 : Kuramoto3State :=
   { θ1 := 0,
     θ2 := 2 * Real.pi / 3,
     θ3 := Real.pi / 3 }
 
-/-- Θ₆*: Exists when K1 = -K2 -/
+-- Θ₆*: Exists when K1 = -K2
 noncomputable def Θ6 : Kuramoto3State :=
   { θ1 := Real.pi,
     θ2 := Real.pi / 3,
     θ3 := 2 * Real.pi / 3 }
 
-/-- Check if a state is a critical point -/
+-- Check if a state is a critical point
 noncomputable def isCritical (state : Kuramoto3State) (params : IsoscelesCoupling) : Prop :=
   let d := params.dynamics state
   d.θ1 = 0 ∧ d.θ2 = 0 ∧ d.θ3 = 0
