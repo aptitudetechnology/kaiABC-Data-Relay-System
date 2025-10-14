@@ -2,7 +2,7 @@ import Mathlib.Data.Real.Basic
 import Mathlib.Data.Complex.Exponential
 import Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic
 import Mathlib.Topology.MetricSpace.Basic
-import Mathlib.LinearAlgebra.Matrix.Determinant
+
 
 
 /-!
