@@ -1,3 +1,10 @@
+import Mathlib.Data.Real.Basic
+import Mathlib.Data.Complex.Exponential
+import Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic
+import Mathlib.Topology.MetricSpace.Basic
+import Mathlib.LinearAlgebra.Matrix.Determinant
+
+
 /-!
 # Kuramoto Model Formalization
 Complete formalization including general N-oscillator theory and N=3 specific case.
@@ -11,11 +18,7 @@ Oscillators with Isosceles Triangle Network"
 3. Basin volume scaling analysis for N=3 case
 -/
 
-import Mathlib.Data.Real.Basic
-import Mathlib.Data.Complex.Exponential
-import Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic
-import Mathlib.Topology.MetricSpace.Basic
-import Mathlib.LinearAlgebra.Matrix.Determinant
+
 
 -- ============================================================================
 -- PART 1: General N-Oscillator Framework
