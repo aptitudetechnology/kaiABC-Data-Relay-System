@@ -62,7 +62,7 @@ noncomputable def phaseToComplex (θ : ℝ) : ℂ :=
 /-- The order parameter r e^(iψ) = (1/N) Σ_j exp(iθ_j) -/
 noncomputable def orderParameter {N : ℕ} (state : KuramotoState N) : ℝ :=
   let z := (Finset.univ.sum fun j => phaseToComplex (state.phases j)) / N
-  z.abs
+  ‖z‖
 
 /-- Complete synchronization: all phases equal (modulo 2π) -/
 def isFullySynchronized {N : ℕ} (state : KuramotoState N) : Prop :=
@@ -199,6 +199,8 @@ end CriticalPoints
 
 -- Basin of Attraction Analysis
 
+namespace BasinRegions
+
 -- Basin region for Θ₅* (when K1 = -K2)
 def basinRegion5 (state : Kuramoto3State) : Prop :=
   let θ13 := state.θ1 - state.θ3
@@ -216,6 +218,8 @@ def basinRegion6 (state : Kuramoto3State) : Prop :=
   -7 * Real.pi / 3 < θ13 ∧ θ13 < -Real.pi ∧
   -Real.pi < θ23 ∧ θ23 < Real.pi / 3 ∧
   -2 * Real.pi < θ12 ∧ θ12 < -2 * Real.pi / 3
+
+end BasinRegions
 
 -- ============================================================================
 -- PART 5: Key Theorems about Basin Scaling for N=3
