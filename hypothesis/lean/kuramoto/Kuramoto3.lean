@@ -197,10 +197,6 @@ noncomputable def isCritical (state : Kuramoto3State) (params : IsoscelesCouplin
 
 end CriticalPoints
 
--- Basin of Attraction Analysis
-
-namespace BasinRegions
-
 -- Basin region for Θ₅* (when K1 = -K2)
 def basinRegion5 (state : Kuramoto3State) : Prop :=
   let θ13 := state.θ1 - state.θ3
@@ -219,11 +215,7 @@ def basinRegion6 (state : Kuramoto3State) : Prop :=
   -Real.pi < θ23 ∧ θ23 < Real.pi / 3 ∧
   -2 * Real.pi < θ12 ∧ θ12 < -2 * Real.pi / 3
 
-end BasinRegions
-
--- ============================================================================
--- PART 5: Key Theorems about Basin Scaling for N=3
--- ============================================================================
+-- Key Theorems about Basin Scaling for N=3
 
 /-- For N=3, the synchronized manifold has dimension 2 -/
 theorem sync_manifold_dim_3 : syncManifoldDimension 3 = 2 := by rfl
