@@ -1,5 +1,5 @@
 import Mathlib.Data.Real.Basic
-import Mathlib.Analysis.Complex.Exponential
+import Mathlib.Analysis.Complex.Basic
 import Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic
 import Mathlib.Topology.MetricSpace.Basic
 
@@ -140,12 +140,12 @@ def toAdjacency (params : IsoscelesCoupling) : Fin 3 → Fin 3 → ℝ :=
 /-- Dynamics for three oscillators with isosceles triangle topology -/
 noncomputable def dynamics (params : IsoscelesCoupling) (state : Kuramoto3State) :
     Kuramoto3State :=
-  { θ1 := params.K1 * Real.sin(state.θ2 - state.θ1) +
-          params.K1 * Real.sin(state.θ3 - state.θ1),
-    θ2 := params.K1 * Real.sin(state.θ1 - state.θ2) +
-          params.K2 * Real.sin(state.θ3 - state.θ2),
-    θ3 := params.K1 * Real.sin(state.θ1 - state.θ3) +
-          params.K2 * Real.sin(state.θ2 - state.θ3) }
+  { θ1 := params.K1 * Real.sin (state.θ2 - state.θ1) +
+          params.K1 * Real.sin (state.θ3 - state.θ1),
+    θ2 := params.K1 * Real.sin (state.θ1 - state.θ2) +
+          params.K2 * Real.sin (state.θ3 - state.θ2),
+    θ3 := params.K1 * Real.sin (state.θ1 - state.θ3) +
+          params.K2 * Real.sin (state.θ2 - state.θ3) }
 
 /-- Check if params satisfy K1 = -K2 (special case) -/
 def isSpecialCase (params : IsoscelesCoupling) : Prop := params.K1 = -params.K2
@@ -179,16 +179,16 @@ noncomputable def Θ4 : Kuramoto3State where
   θ3 := 0
 
 /-- Θ₅*: Exists when K1 = -K2 -/
-noncomputable def Θ5 : Kuramoto3State where
-  θ1 := 0
-  θ2 := 2 * Real.pi / 3
-  θ3 := Real.pi / 3
+noncomputable def Θ5 : Kuramoto3State :=
+  { θ1 := 0,
+    θ2 := 2 * Real.pi / 3,
+    θ3 := Real.pi / 3 }
 
 /-- Θ₆*: Exists when K1 = -K2 -/
-noncomputable def Θ6 : Kuramoto3State where
-  θ1 := Real.pi
-  θ2 := Real.pi / 3
-  θ3 := 2 * Real.pi / 3
+noncomputable def Θ6 : Kuramoto3State :=
+  { θ1 := Real.pi,
+    θ2 := Real.pi / 3,
+    θ3 := 2 * Real.pi / 3 }
 
 /-- Check if a state is a critical point -/
 noncomputable def isCritical (state : Kuramoto3State) (params : IsoscelesCoupling) : Prop :=
@@ -270,18 +270,18 @@ namespace Jacobian3
 
 /-- Compute Jacobian for isosceles triangle network -/
 noncomputable def compute (state : Kuramoto3State) (params : IsoscelesCoupling) : Jacobian3 :=
-  { J11 := -params.K1 * Real.cos(state.θ2 - state.θ1) -
-            params.K1 * Real.cos(state.θ3 - state.θ1),
-    J12 := params.K1 * Real.cos(state.θ2 - state.θ1),
-    J13 := params.K1 * Real.cos(state.θ3 - state.θ1),
-    J21 := params.K1 * Real.cos(state.θ1 - state.θ2),
-    J22 := -params.K1 * Real.cos(state.θ1 - state.θ2) -
-            params.K2 * Real.cos(state.θ3 - state.θ2),
-    J23 := params.K2 * Real.cos(state.θ3 - state.θ2),
-    J31 := params.K1 * Real.cos(state.θ1 - state.θ3),
-    J32 := params.K2 * Real.cos(state.θ2 - state.θ3),
-    J33 := -params.K1 * Real.cos(state.θ1 - state.θ3) -
-            params.K2 * Real.cos(state.θ2 - state.θ3) }
+  { J11 := -params.K1 * Real.cos (state.θ2 - state.θ1) -
+            params.K1 * Real.cos (state.θ3 - state.θ1),
+    J12 := params.K1 * Real.cos (state.θ2 - state.θ1),
+    J13 := params.K1 * Real.cos (state.θ3 - state.θ1),
+    J21 := params.K1 * Real.cos (state.θ1 - state.θ2),
+    J22 := -params.K1 * Real.cos (state.θ1 - state.θ2) -
+            params.K2 * Real.cos (state.θ3 - state.θ2),
+    J23 := params.K2 * Real.cos (state.θ3 - state.θ2),
+    J31 := params.K1 * Real.cos (state.θ1 - state.θ3),
+    J32 := params.K2 * Real.cos (state.θ2 - state.θ3),
+    J33 := -params.K1 * Real.cos (state.θ1 - state.θ3) -
+            params.K2 * Real.cos (state.θ2 - state.θ3) }
 
 end Jacobian3
 
