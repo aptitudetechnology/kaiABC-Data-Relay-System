@@ -1,5 +1,5 @@
 import Mathlib.Data.Real.Basic
-import Mathlib.Analysis.Complex.Basic
+import Mathlib.Data.Complex.Basic
 import Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic
 import Mathlib.Topology.MetricSpace.Basic
 
@@ -199,7 +199,7 @@ end CriticalPoints
 
 -- Basin of Attraction Analysis
 
-/-- Basin region for Θ₅* (when K1 = -K2) -/
+-- Basin region for Θ₅* (when K1 = -K2)
 def basinRegion5 (state : Kuramoto3State) : Prop :=
   let θ13 := state.θ1 - state.θ3
   let θ23 := state.θ2 - state.θ3
@@ -208,7 +208,7 @@ def basinRegion5 (state : Kuramoto3State) : Prop :=
   -Real.pi / 3 < θ23 ∧ θ23 < Real.pi ∧
   -4 * Real.pi / 3 < θ12 ∧ θ12 < 0
 
-/-- Basin region for Θ₆* (when K1 = -K2) -/
+-- Basin region for Θ₆* (when K1 = -K2)
 def basinRegion6 (state : Kuramoto3State) : Prop :=
   let θ13 := state.θ1 - state.θ3
   let θ23 := state.θ2 - state.θ3
