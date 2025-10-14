@@ -17,17 +17,25 @@ This repository now includes a **prototype theoretical (not currently tested) im
 - Remarkably stable 24h period across temperature variation
 - Q10 ≈ 1.1 (near-perfect temperature compensation)
 
-**2. Geometry:** Kakeya set theory (measure-theoretic bounds on directional structures)
-- Kakeya conjecture: Unsolved problem in harmonic analysis
-- Concerns geometric objects containing line segments in all directions
-- Measure theory and fractal dimension bounds
+**2. Geometry:** ### 🧬 **Triple Connection Framework: Biology → Dynamics → Formal Verification**
 
-**3. Dynamics:** Kuramoto synchronization (phase coupling and basin volumes)
+**1. Biology:** KaiABC circadian proteins (temperature-compensated oscillators)
+- Cyanobacterial biological clock (KaiA, KaiB, KaiC proteins)
+- Remarkably stable 24h period across temperature variation
+- Q10 ≈ 1.1 (near-perfect temperature compensation)
+
+**2. Dynamics:** Kuramoto synchronization and basin geometry
 - N coupled phase oscillators on circle
 - Basin of attraction: Region of phase space leading to synchronization
 - Critical coupling K_c separates ordered/disordered phases
+- Effective degrees of freedom scale as √N near synchronization threshold
 
-**Research Hypothesis:** Basin geometry in Kuramoto phase space exhibits Kakeya-like properties, enabling predictable bounds on synchronization probability.
+**3. Formal Verification:** Lean 4 theorem proving
+- Mathematical proofs verified in Lean 4 proof assistant
+- Rigorous formalization of Kuramoto dynamics and basin properties
+- Machine-checked theorems for dimensional reduction and scaling laws
+
+**Research Hypothesis:** The effective dimensionality of Kuramoto phase space dynamics near the synchronization threshold scales as N_eff ~ √N, where oscillators behave as √N independent clusters rather than N independent agents. This dimensional reduction explains the exponential basin volume scaling V ~ 1 - exp(-α√N).
 
 **Key Features:**
 - 🔋 **Ultra-low power:** long theoretical battery life
@@ -35,7 +43,8 @@ This repository now includes a **prototype theoretical (not currently tested) im
 - 🌍 **No infrastructure:** No GPS, NTP servers, or internet required
 - 🌡️ **Temperature compensated:** Works across ±5°C variance (Q10=1.1)
 - 📊 **Mathematically validated:** 4.9% prediction accuracy across 2000 simulations
-- 🔬 **Interdisciplinary research:** Biology + Pure Math + Dynamical Systems
+- 🔬 **Interdisciplinary research:** Biology + Dynamical Systems + Formal Verification
+
 
 **Getting Started:** See [KaiABC Examples](examples/KaiABC_Sensor/) and [Research Documentation](research/KaiABC/)
 
