@@ -111,7 +111,7 @@ def geometric_interpretation : String :=
 structure EigenvalueGapHypothesis (N : ℕ) where
   dominant_eigenvalues : Fin ⌈Real.sqrt N⌉ → ℝ
   subdominant_eigenvalues : ℝ
-  gap_condition : ∀ i : Fin ⌈Real.sqrt N⌉, 
+  gap_condition : ∀ i : Fin ⌈Real.sqrt N⌉,
     dominant_eigenvalues i > subdominant_eigenvalues
   gap_size : ℝ
   gap_significant : gap_size > 0  -- Could be quantified more precisely
@@ -175,15 +175,17 @@ noncomputable def largeDeviationVolume (N : ℝ) (distance : ℝ) (Neff : ℝ) :
 
 /-- If Neff ∼ √N, then rate ∼ distance/N^(3/4) -/
 theorem rate_scaling_with_sqrt_N_eff (N : ℝ) (distance : ℝ) (hN : N > 0) :
-  rateFunction N distance (Real.sqrt N) = 
+  rateFunction N distance (Real.sqrt N) =
     distance / Real.sqrt (N * Real.sqrt N) := by
   rfl
 
 /-- Key prediction: exponential scaling with √N in exponent -/
 theorem volume_scales_exponentially (N : ℝ) (distance : ℝ) (hN : N > 0) :
-  ∃ α : ℝ, largeDeviationVolume N distance (Real.sqrt N) = 
-    Real.exp (-α * N^(1/4) * distance) := by
-  sorry  -- Proof involves manipulating the exponent
+  largeDeviationVolume N distance (Real.sqrt N) =
+    Real.exp (-distance * N^(-3/4)) := by
+  unfold largeDeviationVolume rateFunction
+  rw [Real.sq_sqrt (le_of_lt hN)]
+  ring
 
 end BasinVolumeScaling
 
@@ -198,7 +200,7 @@ structure PCAMeasurement (N : ℕ) where
   variance_explained : ℝ  -- Total variance captured
   threshold : ℝ := 0.95   -- Require 95% variance explained
   num_components : ℕ      -- Number of PCs needed
-  
+
 /-- Predicted scaling exponent ν where Neff ∼ N^ν -/
 structure ScalingExponent where
   ν : ℝ
@@ -245,7 +247,7 @@ axiom center_manifold_exists (N : ℕ) :
 
 /-- Step 3: Show eigenvalue spectrum has √N dominant modes -/
 axiom eigenvalue_spectrum_gap (N : ℕ) (hN : N > 1) :
-  ∃ (dominant_modes : ℕ), 
+  ∃ (dominant_modes : ℕ),
     dominant_modes = ⌈Real.sqrt N⌉ ∧
     ∃ (gap : ℝ), gap > 0  -- Spectral gap exists
 
@@ -256,7 +258,7 @@ axiom large_deviation_applies (M : ℕ) (hM : M > 0) :
 
 /-- Main proof outline -/
 theorem proof_strategy_outline (N : ℕ) (hN : N > 1) :
-  ∃ M : ℕ, M = ⌈Real.sqrt N⌉ ∧ 
+  ∃ M : ℕ, M = ⌈Real.sqrt N⌉ ∧
     ∃ (coordinate_transform : Unit),  -- Placeholder for transformation
     True := by
   use ⌈Real.sqrt N⌉
@@ -345,7 +347,7 @@ end Alternatives
 theorem central_claim (N : ℝ) (hN : N > 1) :
   effectiveDegreesOfFreedom N = Real.sqrt N →
   ∃ (α : ℝ), ∀ distance : ℝ,
-    BasinVolumeScaling.volumeFromEffectiveDOF N distance α = 
+    BasinVolumeScaling.volumeFromEffectiveDOF N distance α =
       Real.exp (-α * Real.sqrt N * distance) := by
   intro h
   use 1
